@@ -29,17 +29,6 @@ dependencies = [
     "weave>=0.52.22",
 ]
 
-[project.optional-dependencies]
-backend = [
-    "fastapi>=0.118.2",
-    "python-multipart>=0.0.20",
-    "sqlalchemy>=2.0.43",
-    "uvicorn[standard]>=0.38.0",
-    "bcrypt>=4.2.0",
-    "pydantic[email]>=2.11.9",
-    "python-jose[cryptography]>=3.3.0",
-]
-
 [dependency-groups]
 dev = [
     "uv>=0.4.20",
@@ -72,6 +61,7 @@ backend = [
 
 [project.scripts]
 athena-dr = "athena_dr.agent.workflow:BaseWorkflow.app"
+athena-dr-mcp = "athena_dr.agent.mcp_backend.main:main"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]

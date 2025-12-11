@@ -194,7 +194,7 @@ def vllm_hosted_reranker(
     Returns:
         RerankerResult containing reranker results with method, model_name, and ranked results
     """
-    from dr_agent.mcp_backend.apis.reranker_apis import vllm_hosted_reranker
+    from athena_dr.agent.mcp_backend.apis.reranker_apis import vllm_hosted_reranker
 
     results = vllm_hosted_reranker(
         query=query,
@@ -402,7 +402,7 @@ async def crawl4ai_fetch_webpage_content(
         Crawl4AiResult with extracted webpage content including markdown-formatted text
     """
 
-    from dr_agent.mcp_backend.local.crawl4ai_fetcher import fetch_markdown
+    from athena_dr.agent.mcp_backend.local.crawl4ai_fetcher import fetch_markdown
 
     result = await fetch_markdown(
         url=url,
@@ -453,7 +453,7 @@ async def crawl4ai_docker_fetch_webpage_content(
     Returns:
         Crawl4aiApiResult with url, success, markdown-formatted text, and optional fit_markdown/html/error fields
     """
-    from dr_agent.mcp_backend.apis.crawl4ai_docker_api import crawl_url_docker
+    from athena_dr.agent.mcp_backend.apis.crawl4ai_docker_api import crawl_url_docker
 
     result = await crawl_url_docker(
         url=url,
@@ -487,7 +487,9 @@ def webthinker_fetch_webpage_content(
     Returns:
         Dictionary containing the URL and extracted text content
     """
-    from dr_agent.mcp_backend.local.webparsers.webthinker import extract_text_from_url
+    from athena_dr.agent.mcp_backend.local.webparsers.webthinker import (
+        extract_text_from_url,
+    )
 
     text = extract_text_from_url(
         url=url,
@@ -515,7 +517,7 @@ async def webthinker_fetch_webpage_content_async(
     Returns:
         Dictionary containing the URL and extracted text content
     """
-    from dr_agent.mcp_backend.local.webparsers.webthinker import (
+    from athena_dr.agent.mcp_backend.local.webparsers.webthinker import (
         extract_text_from_url_async,
     )
 
@@ -545,7 +547,7 @@ async def webthinker_fetch_webpage_content_async(
     return {"url": url, "text": text}
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Run the MCP server")
     parser.add_argument(
         "--transport",
@@ -604,3 +606,7 @@ if __name__ == "__main__":
             path=args.path,
             log_level=args.log_level,
         )
+
+
+if __name__ == "__main__":
+    main()

@@ -8,7 +8,7 @@ The massive-serve API provides document retrieval capabilities using dense passa
 retrieval with various embedding models and indices.
 
 Basic Usage:
-    from dr_agent.mcp_backend.apis.massive_serve_apis import search_massive_serve, parse_massive_serve_results
+    from athena_dr.agent.mcp_backend.apis.massive_serve_apis import search_massive_serve, parse_massive_serve_results
 
     # Search for documents
     response = search_massive_serve(
@@ -27,7 +27,7 @@ Basic Usage:
 
 Advanced Usage:
     # Use cached version to avoid repeated API calls
-    from dr_agent.mcp_backend.apis.massive_serve_apis import search_massive_serve_cached
+    from athena_dr.agent.mcp_backend.apis.massive_serve_apis import search_massive_serve_cached
 
     response = search_massive_serve_cached(
         query="Einstein relativity theory",
