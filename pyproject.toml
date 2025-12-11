@@ -1,0 +1,80 @@
+[project]
+name = "athena_dr"
+dynamic = ["version"]
+description = "Deep Research assistant"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.13.3",
+    "litellm>=1.80.9",
+    "python-dotenv>=1.2.1",
+    "weave>=0.52.22",
+]
+
+[project.optional-dependencies]
+backend = [
+    "fastapi>=0.118.2",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.43",
+    "uvicorn[standard]>=0.38.0",
+    "bcrypt>=4.2.0",
+    "pydantic[email]>=2.11.9",
+    "python-jose[cryptography]>=3.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "uv>=0.4.20",
+    "pytest>=8.3.3",
+    "isort>=5.13.2",
+    "black>=24.10.0",
+    "ruff>=0.6.9",
+]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocstrings>=0.26.1",
+    "mkdocstrings-python>=1.11.1",
+    "mkdocs-material>=9.5.39",
+    "mkdocs-minify-plugin>=0.8.0",
+    "mkdocs-glightbox>=0.4.0",
+    "mkdocs-jupyter>=0.25.0",
+    "mkdocs-panzoom-plugin",
+    "jupyter>=1.1.1",
+]
+build = [
+    "twine>=5.1.1",
+    "wheel>=0.40",
+    "build>=0.10"
+]
+backend = [
+    "fastapi>=0.118.2",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.12",
+]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["athena_dr"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["I", "F401"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["athena_dr"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
