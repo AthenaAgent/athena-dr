@@ -51,7 +51,8 @@ docs = [
 
 [project.scripts]
 athena-dr-mcp = "athena_dr.agent.mcp_backend.main:main"
-athena-dr-workflows = "athena_dr.agent.workflows.cli:main"
+athena-dr-workflows = "athena_dr.agent.workflows.cli:launch_web_page_reader_cli"
+athena-dr = "athena_dr.agent.workflows.cli:launch_auto_search_workflow_cli"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]

@@ -5,7 +5,7 @@ import typer
 import weave
 from dotenv import load_dotenv
 
-from athena_dr.agent.workflows import run_web_page_reader
+from athena_dr.agent.workflows import AutoReasonSearchWorkflow, run_web_page_reader
 
 
 def web_page_reader(
@@ -32,9 +32,10 @@ def web_page_reader(
     rich.print(result)
 
 
-def main() -> None:
+def launch_web_page_reader_cli() -> None:
     typer.run(web_page_reader)
 
 
-if __name__ == "__main__":
-    main()
+def launch_auto_search_workflow_cli() -> None:
+    load_dotenv()
+    AutoReasonSearchWorkflow.app()
