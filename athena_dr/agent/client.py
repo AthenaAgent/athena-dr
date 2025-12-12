@@ -1186,6 +1186,7 @@ class LLMToolClient:
             "top_p": top_p if top_p is not None else config.top_p,
             "max_tokens": max_tokens if max_tokens is not None else config.max_tokens,
             "stop": stop_sequences,
+            "api_version": "2024-12-01-preview",
         }
 
         # Add seed if provided
