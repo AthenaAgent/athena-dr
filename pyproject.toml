@@ -48,19 +48,8 @@ docs = [
     "mkdocs-panzoom-plugin",
     "jupyter>=1.1.1",
 ]
-build = [
-    "twine>=5.1.1",
-    "wheel>=0.40",
-    "build>=0.10"
-]
-backend = [
-    "fastapi>=0.118.2",
-    "uvicorn[standard]>=0.30.0",
-    "python-multipart>=0.0.12",
-]
 
 [project.scripts]
-athena-dr = "athena_dr.agent.workflow:BaseWorkflow.app"
 athena-dr-mcp = "athena_dr.agent.mcp_backend.main:main"
 
 [build-system]
