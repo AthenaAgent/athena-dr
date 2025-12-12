@@ -29,7 +29,7 @@ from athena_dr.agent.tool_interface import (
     ToolOutput,
     VllmHostedRerankerTool,
 )
-from athena_dr.agent.workflow import BaseWorkflow, BaseWorkflowConfiguration
+from athena_dr.agent.workflows.base import BaseWorkflow, BaseWorkflowConfiguration
 
 __all__ = [
     # Core components
