@@ -75,3 +75,4 @@ plugins:
 nav:
   - Home: index.md
   - Benchmarks: benchmarks.md
+  - CLIs: cli.md
