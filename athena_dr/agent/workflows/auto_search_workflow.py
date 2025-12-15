@@ -43,6 +43,13 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
         browse_agent_max_tokens: int = 32000
         browse_agent_temperature: float = 0.3
 
+        grader_base_url: Optional[str] = None
+        grader_model_name: str = "Qwen/Qwen3-8B"
+        grader_tokenizer_name: str = "Qwen/Qwen3-8B"
+        grader_api_key: str = "dummy-key"
+        grader_max_tokens: int = 32000
+        grader_temperature: float = 0.3
+
         # MCP transport configuration
         mcp_transport_type: str = "StreamableHttpTransport"
         mcp_executable: Optional[str] = None
@@ -337,3 +344,7 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
             "browsed_links": browsed_links,
             "searched_links": searched_links,
         }
+
+
+if __name__ == "__main__":
+    AutoReasonSearchWorkflow.app()

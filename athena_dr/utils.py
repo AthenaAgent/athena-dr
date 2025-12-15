@@ -121,7 +121,7 @@ def pretty_print_tools(tools: list, console: Console) -> None:
 
 async def _list_tools_from_server(server) -> None:
     """Connect to a FastMCP server object directly and list tools.
-    
+
     Args:
         server: A FastMCP server instance
     """

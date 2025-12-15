@@ -16,6 +16,7 @@ browse_agent_base_url: "https://soumik-dr.cognitiveservices.azure.com/"
 browse_agent_max_tokens: 32000
 browse_agent_temperature: 1 # GPT-5 does not support temperature
 
+
 # Search tool configuration
 number_documents_to_search: 10
 search_timeout: 60

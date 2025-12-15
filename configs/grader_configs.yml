@@ -1,0 +1,7 @@
+# Client config for the grader model for rejection sampling
+grader_model_name: "azure/gpt-4.1"
+grader_api_key: ${oc.env:AZURE_API_KEY}
+grader_base_url: "https://soumik-dr.cognitiveservices.azure.com/"
+grader_max_tokens: 32000
+grader_temperature: 1 # GPT-5 does not support temperature
+grader_max_tool_calls: 5
