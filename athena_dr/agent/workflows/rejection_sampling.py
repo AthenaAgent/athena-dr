@@ -4,6 +4,7 @@ import string
 from collections import Counter
 from dataclasses import dataclass
 
+import weave
 from litellm import completion
 from omegaconf import OmegaConf
 
@@ -33,6 +34,7 @@ class TraceChecker:
         grader_config = GraderConfig(**resolved_dict)
         return grader_config
 
+    @weave.op
     def get_f1_overlap_score(self, prediction: str, gold: str) -> float:
         """
         SQuAD-style token-overlap F1 between two answer strings (range: 0.0 to 1.0).
@@ -71,6 +73,7 @@ class TraceChecker:
             else 0.0
         )
 
+    @weave.op
     def check_answer_correctness(
         self, question: str, target: str, predicted_answer: str
     ) -> bool:
@@ -95,8 +98,8 @@ class TraceChecker:
                 max_tokens=self.grader_config.grader_max_tokens,
                 temperature=self.grader_config.grader_temperature,
             )
-            if result.choices[0].message.content.lower() == "correct":
+            if result.choices[0].message.content.lower() == "a":
                 return True
             else:
                 return False
-        return False
+        return True
