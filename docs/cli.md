@@ -7,6 +7,7 @@ Athena DR provides several command-line tools for running deep research workflow
 | Command | Purpose | Entry Point |
 |---------|---------|-------------|
 | `athena-dr` | Main workflow CLI for running auto-search workflows and dataset generation | `athena_dr.agent.workflows.cli:launch_auto_search_workflow_cli` |
+| `athena-dr-trace` | Generate SFT traces from HuggingFace datasets using TraceGenerator | `athena_dr.agent.workflows.cli:launch_trace_generator_cli` |
 | `athena-dr-mcp` | Run the MCP (Model Context Protocol) server with search and browse tools | `athena_dr.agent.mcp_backend.main:main` |
 | `athena-dr-list-tools` | List all available tools from the MCP server in a formatted table | `athena_dr.utils:list_tools_from_server` |
 | `athena-dr-workflows` | Web page reader CLI to read and answer questions from web pages | `athena_dr.agent.workflows.cli:launch_web_page_reader_cli` |
@@ -88,6 +89,82 @@ athena-dr collect-rejection-sampling-data OUTPUT_FILE [OPTIONS]
 | `OUTPUT_FILE` | Output file path for collected results |
 | `--max-iterations` | Maximum iterations to check (default: 10) |
 | `--verbose`, `-v` | Enable verbose output |
+
+---
+
+## `athena-dr-trace`
+
+CLI for generating SFT (Supervised Fine-Tuning) traces from HuggingFace datasets using the TraceGenerator. This tool runs the AutoReasonSearchWorkflow on dataset examples and uses rejection sampling to ensure high-quality traces.
+
+### Commands
+
+#### `generate-sft-trace`
+
+Generate SFT traces from a HuggingFace dataset.
+
+```bash
+athena-dr-trace generate-sft-trace DATASET_PATH DATASET_NAME [OPTIONS]
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `DATASET_PATH` | HuggingFace dataset path (e.g., `hotpotqa/hotpot_qa`) |
+| `DATASET_NAME` | Name of the dataset configuration (e.g., `distractor` for hotpotqa) |
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--prompt-column`, `-p` | Column name for the prompt/question | `question` |
+| `--gt-answer-column`, `-g` | Column name for the ground truth answer | `answer` |
+| `--split`, `-s` | Dataset split to use | `train` |
+| `--max-examples`, `-n` | Maximum number of examples to process | None (all) |
+| `--max-attempts`, `-a` | Maximum attempts per example for rejection sampling | `3` |
+| `--auto-search-config` | Path to auto search configuration file | `configs/auto_search_configs.yml` |
+| `--rejection-sampling-config` | Path to rejection sampling configuration file | `configs/rejection_sampling_configs.yml` |
+| `--export-dataset`, `-e` | HuggingFace Hub path to export the generated traces | None |
+| `--project` | Weave project name for tracing | `athena_dr` |
+
+### How It Works
+
+1. **Dataset Loading**: Loads the specified dataset from HuggingFace Hub
+2. **Trace Generation**: For each example, runs the AutoReasonSearchWorkflow to generate a reasoning trace
+3. **Rejection Sampling**: Checks if the generated answer matches the ground truth; retries up to `--max-attempts` times if incorrect
+4. **Export**: Optionally pushes the successful traces to HuggingFace Hub
+
+### Examples
+
+**Basic usage with HotpotQA:**
+
+```bash
+athena-dr-trace generate-sft-trace hotpotqa/hotpot_qa distractor \
+    --max-examples 5 \
+    --export-dataset username/hotpotqa_sft_traces
+```
+
+**Custom configuration and columns:**
+
+```bash
+athena-dr-trace generate-sft-trace my-org/custom-dataset default \
+    --prompt-column query \
+    --gt-answer-column response \
+    --split validation \
+    --max-examples 100 \
+    --max-attempts 5 \
+    --auto-search-config configs/custom_auto_search.yml \
+    --export-dataset my-org/custom_sft_traces
+```
+
+**Process all examples from a dataset:**
+
+```bash
+athena-dr-trace generate-sft-trace natural_questions simplified \
+    --split train \
+    --export-dataset username/nq_sft_traces \
+    --project my_weave_project
+```
 
 ---
 
