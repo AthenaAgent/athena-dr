@@ -1,6 +1,50 @@
 # Plan
 
+- identify model
+    - qwen3 8b * <-------------------------------
+        - max context length is 128k with yarn
+    - olmo3 8b
+      - olmo3 8b use MHA not GQA so need more varm for inference
+    - rng-1 8b
+        - max context length is 32k with yarn
+    - trinity 6b 1B MOE 
+        - we dont want to focus on moe, just post tranining recipe for now
+
+    if 32b:
+    - nemotron3 32b A3b
+    - qwen3 32b A3b
+    - olmo3 32b
+    - trinity 32b
+
+- plan of actions
+    - sft (only)
+        - model already to tool calls we just need to teach them to work on long horizon tasks (so no mid training needed)
+    - rl
+        if we have time / compute 
+        - we will use the same tool as sft
+- what tool to use
+    - Why more tools are needed?
+        - Overall, this suggests that using multiple complementary search tools and allowing the model to adaptively select among them can improve both prediction quality and cost efficiency (dr tulu page 13 para 1)
+        - R1-32B is not able to decompose the complex query into individual components, consequently only
+            making ambiguous queries that involve too many unknown information. The agent also has severe
+            hallucinations, producing conclusions that are not supported by the search results. Finally, it fails to
+            resolve all unknown information. This case study shows that existing online RL approaches only
+            incentivize elementary search strategies. It is also worth noting that, since the turn limit is set as a
+            small value, e.g. 4, during training, the model only exhibits a short tool-use horizon
+            (Beyond Ten Turns: https://arxiv.org/pdf/2508.07976 | section 2)
+        https://www.youtube.com/watch?v=CEvIs9y1uog&t=92s
+
+
 ## Objective
+
+
+
+What Deepresearch means to us?
+ -  current gpt/gemini deepresearch dumps either too much information or too high level summary over all searched information
+ -  we hope we can have progressive explaintions eg top level first and then more detailed explanations for each step
+ -  by top level explantions we can skip the part not important in deeper explanations
+ -  also better verifiabe citations linking what exactly its referring to no just link of referaces
+ 
 
 The objective is to train a comprehensive deep research agent system in the 8B parameter range (Usuing Qwen-3 8B or a similar model as the base model) that is competitive with single agent models of similar size on the following benchmarks:
 1. [Frames](./benchmarks.md#frames-factuality-retrieval-and-reasoning-measurement-set) benchmark (> 63.3 which is achieved by SFR-DR-8B).
