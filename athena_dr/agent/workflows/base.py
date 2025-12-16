@@ -672,8 +672,8 @@ class BaseWorkflow(ABC):
         return all_results
 
     @classmethod
-    def app(cls):
-        """Create a typer app with commands for this workflow."""
+    def get_typer_app(cls):
+        """Create and return a typer app with commands for this workflow."""
         app = typer.Typer()
 
         @app.command()
@@ -1182,7 +1182,13 @@ class BaseWorkflow(ABC):
             typer.echo(f"Generated {len(results)} responses for iteration {iteration}")
             typer.echo(f"Results saved to {current_output_file}")
 
-        return app()
+        return app
+
+    @classmethod
+    def app(cls):
+        """Create and run a typer app with commands for this workflow."""
+        typer_app = cls.get_typer_app()
+        return typer_app()
 
     def _try_merge_worker_results(
         self, final_output_file: str, num_total_workers: int
