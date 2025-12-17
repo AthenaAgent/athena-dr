@@ -1,18 +1,30 @@
 tool_parser: "v20250824"
 
 # Client config for the SearchAgent (SFT model)
-search_agent_model_name: "openai/gpt-5.2"
+# Note: openrouter/ prefix tells litellm to use OpenRouter API
+search_agent_model_name: "openrouter/z-ai/glm-4.6"
 search_agent_api_key: ${oc.env:OPENROUTER_API_KEY}
-search_agent_base_url: "https://openrouter.ai/api/v1"
+# base_url is not needed when using openrouter/ prefix - litellm handles it
 search_agent_max_tokens: 32000
 search_agent_temperature: 1 # GPT-5 does not support temperature
 search_agent_max_tool_calls: 5
 
+# OpenRouter provider preferences (optional)
+# Specify which providers to try in order. Common providers:
+# - DeepSeek, Together, Fireworks, Lepton, Novita, Avian, Lambda, Azure, AWS, OpenAI
+# Uncomment and customize as needed:
+openrouter_provider_order:
+  - "DeepSeek"
+  - "Together"
+  - "Fireworks"
+openrouter_allow_fallbacks: true  # Allow other providers if preferred ones unavailable
+openrouter_require_parameters: false  # Don't require exact parameter matching
+
 # Client config for the browse/reader agent (general model)
 use_browse_agent: false
-browse_agent_model_name: "openai/gpt-5.2" # This should be the same name when you launch the VLLM backend.
+browse_agent_model_name: "openrouter/z-ai/glm-4.6"
 browse_agent_api_key: ${oc.env:OPENROUTER_API_KEY}
-browse_agent_base_url: "https://openrouter.ai/api/v1"
+# base_url is not needed when using openrouter/ prefix - litellm handles it
 browse_agent_max_tokens: 32000
 browse_agent_temperature: 1 # GPT-5 does not support temperature
 

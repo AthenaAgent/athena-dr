@@ -74,6 +74,7 @@ class LLMToolClient:
         base_url: Optional[str] = None,
         tools: Optional[List[BaseTool]] = None,
         generation_config: Optional[GenerationConfig] = None,
+        extra_body: Optional[Dict[str, Any]] = None,
     ):
         # Initialize global semaphore if not already done
         if LLMToolClient._global_semaphore is None:
@@ -90,6 +91,7 @@ class LLMToolClient:
         self.api_key = api_key
         self.base_url = base_url
         self.client = client  # For custom client if provided
+        self.extra_body = extra_body or {}  # For provider-specific options (e.g., OpenRouter)
 
         self.tools = tools or []
         self.model_name = model_name
@@ -172,6 +174,7 @@ class LLMToolClient:
             "palm",  # Google
             "command",
             "coral",  # Cohere
+            "openrouter/",  # OpenRouter API gateway
         ]
 
         all_commercial_patterns = (
@@ -1200,6 +1203,10 @@ class LLMToolClient:
             params["api_key"] = self.api_key
         if self.base_url:
             params["api_base"] = self.base_url
+
+        # Add extra_body for provider-specific options (e.g., OpenRouter provider preferences)
+        if self.extra_body:
+            params["extra_body"] = self.extra_body
 
         # Add any additional kwargs
         params.update(kwargs)

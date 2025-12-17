@@ -1,0 +1,41 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Test Auto Search",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/test_auto_search.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "TOKENIZERS_PARALLELISM": "false"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "TOKENIZERS_PARALLELISM": "false"
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Python: MCP Backend",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/athena_dr/agent/mcp_backend/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "TOKENIZERS_PARALLELISM": "false"
+            },
+            "justMyCode": false
+        }
+    ]
+}
