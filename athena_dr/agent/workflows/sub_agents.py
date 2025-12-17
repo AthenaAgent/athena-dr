@@ -109,7 +109,14 @@ class AnswerAgent(BaseAgent):
         elif dataset_name in ["healthbench", "deep_research_bench", "researchqa"]:
             instruction_field_name = "short_form"
         else:
-            raise ValueError(f"Invalid dataset name: {dataset_name}")
+            if "short_form" in str(dataset_name):
+                instruction_field_name = "short_form"
+            elif "long_form" in str(dataset_name):
+                instruction_field_name = "long_form"
+            elif "exact_answer" in str(dataset_name):
+                instruction_field_name = "exact_answer"
+            else:
+                raise ValueError(f"Unknown dataset name: {dataset_name}")
 
         return [
             {
@@ -118,9 +125,13 @@ class AnswerAgent(BaseAgent):
             },
             {
                 "role": "user",
-                "content": question
-                + "\n\n"
-                + PROMPT["additional_instructions"][instruction_field_name],
+                "content": (
+                    question
+                    + "\n\n"
+                    + PROMPT["additional_instructions"][instruction_field_name]
+                    if instruction_field_name is not None
+                    else question
+                ),
             },
             {
                 "role": "assistant",

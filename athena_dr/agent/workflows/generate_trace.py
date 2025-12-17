@@ -21,6 +21,7 @@ class TraceGenerator:
         rejection_sampling_config_path: os.PathLike,
         dataset: Dataset,
         dataset_name: str,
+        dataset_type: str = "short_form",
         max_examples: int | None = None,
         f1_overlap_score_threshold: float = 0.9,
     ) -> None:
@@ -30,6 +31,7 @@ class TraceGenerator:
             dataset = dataset.select(range(min(max_examples, len(dataset))))
         self.dataset = dataset
         self.dataset_name = dataset_name
+        self.dataset_type = dataset_type
         self.f1_overlap_score_threshold = f1_overlap_score_threshold
         self.sft_traces = []
 
@@ -44,18 +46,17 @@ class TraceGenerator:
         example: dict,
         dataset_name: str,
         prompt_column: str,
-        gt_answer_column: str,
     ) -> tuple[dict, dict] | None:
         problem = SHORT_FORM_ANSWER_EVALUATION_USER_PROMPT_FORMAT.format(
             prompt=example[prompt_column]
         )
-        trace = await self.workflow(problem=problem)
+        trace = await self.workflow(problem=problem, dataset_name=self.dataset_type)
         return {
             "id": str(uuid4()),
             "source_id": f"{dataset_name}_{example_idx}",
             "question": example[prompt_column],
             "source": dataset_name,
-            "type": "short_form",
+            "type": self.dataset_type,
             "num_tool_calls": trace["total_tool_calls"],
             "conversations": [
                 {
@@ -92,7 +93,6 @@ class TraceGenerator:
                     example,
                     self.dataset_name,
                     prompt_column,
-                    gt_answer_column,
                 )
                 if self.trace_checker.check_answer_correctness(
                     question=example[prompt_column],

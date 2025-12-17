@@ -1125,6 +1125,7 @@ class LLMToolClient:
             ),
             "top_p": top_p if top_p is not None else config.top_p,
             "max_tokens": max_tokens if max_tokens is not None else config.max_tokens,
+            "drop_params": True,
         }
 
         # Add seed if provided
@@ -1187,6 +1188,7 @@ class LLMToolClient:
             "max_tokens": max_tokens if max_tokens is not None else config.max_tokens,
             "stop": stop_sequences,
             "api_version": "2024-12-01-preview",
+            "drop_params": True,
         }
 
         # Add seed if provided
@@ -1213,10 +1215,14 @@ class LLMToolClient:
             if include_reasoning:
                 message = response.choices[0].message
                 # Try to get reasoning content from different possible locations
-                reasoning_content = getattr(message, "reasoning_content", None) or (
-                    hasattr(message, "provider_specific_fields")
-                    and isinstance(message.provider_specific_fields, dict)
-                    and message.provider_specific_fields.get("reasoning_content")
+                reasoning_content = (
+                    getattr(message, "reasoning_content", None)
+                    or getattr(message, "reasoning", None)
+                    or (
+                        hasattr(message, "provider_specific_fields")
+                        and isinstance(message.provider_specific_fields, dict)
+                        and message.provider_specific_fields.get("reasoning_content")
+                    )
                 )
 
                 if reasoning_content and verbose:
