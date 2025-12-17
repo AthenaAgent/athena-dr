@@ -131,7 +131,7 @@ class LLMToolClient:
                 )
 
     def _get_tool_parser_type(self) -> Optional[str]:
-        """Get the parser type used by tools. Returns 'legacy', 'unified', or None if no tools."""
+        """Get the parser type used by tools. Returns 'legacy', 'unified', 'v20250824', or None if no tools."""
         if not self.tools:
             return None
 
@@ -140,8 +140,60 @@ class LLMToolClient:
             return "legacy"
         elif parser_class_name == "UnifiedToolCallParser":
             return "unified"
+        elif parser_class_name == "UnifiedToolCallParserV20250824":
+            return "v20250824"
         else:
             return None
+
+    def _fix_incomplete_tool_calls(self, content: str, verbose: bool = False) -> str:
+        """Fix incomplete tool calls where the model didn't generate the closing tag.
+
+        Some models (e.g., GLM-4.6) may end generation with their native end-of-turn tokens
+        (like <|im_end|>) instead of the expected closing tag (like </call_tool>).
+        This method detects such cases and fixes them.
+        """
+        import re
+
+        parser_type = self._get_tool_parser_type()
+        if not parser_type:
+            return content
+
+        # Common model end-of-turn tokens to strip (defined as raw strings)
+        end_token_patterns = [
+            r"<\|im_end\|>",
+            r"<\|eot_id\|>",
+            r"<\|end\|>",
+            r"<\/s>",
+            r"<\|endoftext\|>",
+        ]
+
+        # Strip any end tokens from the content
+        cleaned_content = content
+        for pattern in end_token_patterns:
+            cleaned_content = re.sub(pattern + r"$", "", cleaned_content)
+
+        # Define tool call patterns and their closing tags based on parser type
+        if parser_type == "v20250824":
+            # Pattern: <call_tool name="...">content (missing </call_tool>)
+            open_pattern = r"<call_tool\s+[^>]*>(?!.*</call_tool>)"
+            closing_tag = "</call_tool>"
+        elif parser_type == "unified":
+            # Pattern: <tool name="...">content (missing </tool>)
+            open_pattern = r"<tool\s+[^>]*>(?!.*</tool>)"
+            closing_tag = "</tool>"
+        else:
+            # Legacy or unknown parser - no fix needed
+            return content
+
+        # Check if there's an incomplete tool call
+        if re.search(open_pattern, cleaned_content, re.DOTALL):
+            # There's an opening tag without a closing tag
+            if not cleaned_content.rstrip().endswith(closing_tag):
+                cleaned_content = cleaned_content.rstrip() + closing_tag
+                if verbose:
+                    print(f"Fixed incomplete tool call by adding {closing_tag}")
+
+        return cleaned_content
 
     def _is_commercial_api_model(self, model_name: str) -> bool:
         """Detect if this is a commercial API model vs a self-hosted model
@@ -1201,6 +1253,12 @@ class LLMToolClient:
         if self.base_url:
             params["api_base"] = self.base_url
 
+        # Enable reasoning for OpenRouter models that support it
+        if self.model_name.startswith("openrouter/") or (
+            self.base_url and "openrouter" in self.base_url
+        ):
+            params["extra_body"] = {"reasoning": {"enabled": True}}
+
         # Add any additional kwargs
         params.update(kwargs)
         # print(params)
@@ -1299,6 +1357,9 @@ class LLMToolClient:
                                 content = test_content
                                 added_stop_token = stop_token
                                 break
+
+            # Fix incomplete tool calls (models that don't generate closing tags)
+            content = self._fix_incomplete_tool_calls(content, verbose=verbose)
 
             return content
         except asyncio.TimeoutError:
