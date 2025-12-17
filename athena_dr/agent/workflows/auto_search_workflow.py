@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from athena_dr.agent.client import LLMToolClient
 from athena_dr.agent.tool_interface.chained_tool import ChainedTool
@@ -34,6 +34,14 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
         search_agent_max_tokens: int = 32000
         search_agent_temperature: float = 0.7
         search_agent_max_tool_calls: int = 10
+        
+        # OpenRouter provider preferences (optional)
+        # order: list of provider names to try in order (e.g., ["DeepSeek", "Together", "Fireworks"])
+        # allow_fallbacks: whether to allow providers not in the order list
+        # require_parameters: require exact parameter matching
+        openrouter_provider_order: Optional[List[str]] = None
+        openrouter_allow_fallbacks: bool = True
+        openrouter_require_parameters: bool = False
 
         use_browse_agent: bool = False
         browse_agent_base_url: Optional[str] = None
@@ -212,11 +220,23 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
         else:
             self.composed_browse_tool = self.browse_tool
 
+        # Build extra_body for OpenRouter provider preferences if configured
+        extra_body = None
+        if cfg.openrouter_provider_order:
+            extra_body = {
+                "provider": {
+                    "order": cfg.openrouter_provider_order,
+                    "allow_fallbacks": cfg.openrouter_allow_fallbacks,
+                    "require_parameters": cfg.openrouter_require_parameters,
+                }
+            }
+
         with LLMToolClient(
             model_name=cfg.search_agent_model_name,
             tokenizer_name=cfg.search_agent_tokenizer_name,
             base_url=cfg.search_agent_base_url,
             api_key=cfg.search_agent_api_key,
+            extra_body=extra_body,
         ) as client:
             self.search_agent = SearchAgent(
                 client=client,
