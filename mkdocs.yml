@@ -74,5 +74,6 @@ plugins:
 
 nav:
   - Home: index.md
+  - Plan: plan.md
   - Benchmarks: benchmarks.md
   - CLIs: cli.md
