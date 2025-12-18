@@ -8,7 +8,6 @@ from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
-from athena_dr.agent.mcp_backend.apis.data_model import Crawl4aiApiResult
 from athena_dr.agent.mcp_backend.apis.jina_apis import (
     JinaWebpageResponse,
     fetch_webpage_content_jina,
@@ -17,20 +16,11 @@ from athena_dr.agent.mcp_backend.apis.massive_serve_apis import (
     parse_massive_serve_results,
     search_massive_serve,
 )
-from athena_dr.agent.mcp_backend.apis.pubmed_apis import search_pubmed
 from athena_dr.agent.mcp_backend.apis.reranker_apis import RerankerResult
-from athena_dr.agent.mcp_backend.apis.semantic_scholar_apis import (
-    SemanticScholarSearchQueryParams,
-    SemanticScholarSnippetSearchQueryParams,
-    search_semantic_scholar_keywords,
-    search_semantic_scholar_snippets,
-)
 from athena_dr.agent.mcp_backend.apis.serper_apis import (
-    ScholarResponse,
     WebpageContentResponse,
     fetch_webpage_content,
     search_serper,
-    search_serper_scholar,
 )
 from athena_dr.agent.mcp_backend.cache import set_cache_enabled
 from athena_dr.agent.mcp_backend.local.crawl4ai_fetcher import Crawl4AiResult
@@ -50,127 +40,6 @@ async def health_check(request: Request) -> PlainTextResponse:
     curl http://127.0.0.1:8000/health
     """
     return PlainTextResponse("OK")
-
-
-@mcp.tool(tags={"search", "necessary"})
-def semantic_scholar_search(
-    query: Annotated[str, "Search query string"],
-    year: Annotated[
-        Optional[str], "Year range filter (e.g., '2015-2020', '2015-', '-2015')"
-    ] = None,
-    min_citation_count: Annotated[Optional[int], "Minimum number of citations"] = None,
-    sort: Annotated[
-        Optional[str], "Sort order (e.g., 'citationCount:asc', 'publicationDate:desc')"
-    ] = None,
-    venue: Annotated[Optional[str], "Venue filter (e.g., 'ACL', 'EMNLP')"] = None,
-    limit: Annotated[int, "Maximum number of results to return (max: 100)"] = 25,
-) -> dict:
-    """
-    Search for academic papers using Semantic Scholar API.
-
-    Returns:
-        Dictionary containing search results
-    """
-    query_params = SemanticScholarSearchQueryParams(
-        query=query,
-        year=year,
-        minCitationCount=min_citation_count,
-        sort=sort,
-        venue=venue,
-    )
-
-    results = search_semantic_scholar_keywords(
-        query_params=query_params,
-        limit=min(limit, 100),  # Ensure limit doesn't exceed API maximum
-    )
-
-    return results
-
-
-@mcp.tool(tags={"search"})
-def semantic_scholar_snippet_search(
-    query: Annotated[str, "Search query string to find within paper content"],
-    year: Annotated[
-        Optional[str],
-        "Publication year filter - single number (e.g., '2024') or range (e.g., '2022-2025', '2020-', '-2023')",
-    ] = None,
-    paper_ids: Annotated[
-        Optional[str], "Comma-separated list of specific paper IDs to search within"
-    ] = None,
-    venue: Annotated[Optional[str], "Venue filter (e.g., 'ACL', 'EMNLP')"] = None,
-    limit: Annotated[int, "Number of snippets to retrieve"] = 10,
-) -> dict:
-    """
-    Focused snippet retrieval from scientific papers using Semantic Scholar API.
-
-    Purpose: Search for specific text snippets within academic papers to find relevant passages, quotes,
-    or mentions from scientific literature. Returns focused snippets from existing papers rather than
-    full paper metadata.
-
-    Returns:
-        Dictionary containing snippets from existing papers with text passages and their source papers.
-        Each snippet includes the relevant text passage and metadata about the source paper.
-
-    Example:
-        Search for LLM evaluation snippets published between 2021-2025 in CS/Medicine:
-        query="large language model retrieval evaluation", year="2021-2025", limit=8
-    """
-    # Convert comma-separated string to list if provided
-    paper_ids_list = None
-    if paper_ids:
-        paper_ids_list = [pid.strip() for pid in paper_ids.split(",")]
-
-    query_params = SemanticScholarSnippetSearchQueryParams(
-        query=query,
-        year=year,
-        paperIds=paper_ids_list,
-        venue=venue,
-    )
-
-    results = search_semantic_scholar_snippets(
-        query_params=query_params,
-        limit=limit,
-    )
-
-    return results
-
-
-@mcp.tool(tags={"search"})
-def pubmed_search(
-    query: str,
-    limit: int = 10,
-    offset: int = 0,
-) -> dict:
-    """
-    Search for medical and scientific papers using PubMed API.
-
-    Args:
-        query: Search query string
-        limit: Maximum number of results to return (default: 10)
-        offset: Starting position for pagination (default: 0)
-
-    Returns:
-        Dictionary containing search results with the following fields:
-        - total: Total number of results
-        - offset: Current offset
-        - next: Next offset for pagination
-        - data: List of paper details including:
-            - paperId: PubMed ID
-            - title: Paper title
-            - authors: List of authors
-            - abstract: Paper abstract
-            - year: Publication year
-            - venue: Journal name
-            - url: Link to PubMed page
-            - citationCount: Number of citations (if available from Semantic Scholar)
-    """
-    results = search_pubmed(
-        keywords=query,
-        limit=limit,
-        offset=offset,
-    )
-
-    return results
 
 
 @mcp.tool(tags={"necessary", "rerank"})
@@ -354,26 +223,6 @@ def jina_fetch_webpage_content(
     return result
 
 
-@mcp.tool(tags={"search", "necessary"})
-def serper_google_scholar_search(
-    query: Annotated[str, "Search query string"],
-    num_results: Annotated[int, "Number of results to return"] = 10,
-) -> ScholarResponse:
-    """
-    Search for academic papers using google scholar (based on Serper.dev API).
-
-    Returns:
-        Dictionary containing search results with the following fields:
-        - organic: List of organic search results
-    """
-    results = search_serper_scholar(
-        query=query,
-        num_results=num_results,
-    )
-
-    return results
-
-
 @mcp.tool(tags={"browse", "necessary"})
 async def crawl4ai_fetch_webpage_content(
     url: Annotated[str, "URL to fetch and extract content from"],
@@ -415,89 +264,6 @@ async def crawl4ai_fetch_webpage_content(
         include_html=include_html,
     )
     return result
-
-
-@mcp.tool(tags={"browse", "necessary"})
-async def crawl4ai_docker_fetch_webpage_content(
-    url: Annotated[str, "Target URL to crawl and extract content from"],
-    base_url: Annotated[
-        Optional[str],
-        "Base URL for the Crawl4AI Docker API (e.g., 'http://localhost:8000')",
-    ] = None,
-    api_key: Annotated[Optional[str], "API key for authentication"] = None,
-    use_ai2_config: Annotated[
-        bool,
-        "If True, use AI2 bot configuration with blocklist (requires CRAWL4AI_BLOCKLIST_PATH env var)",
-    ] = False,
-    bypass_cache: Annotated[bool, "If True, bypass Crawl4AI cache"] = True,
-    ignore_links: Annotated[bool, "If True, remove hyperlinks in markdown"] = True,
-    use_pruning: Annotated[
-        bool,
-        "Apply pruning content filter to extract main content (used when bm25_query is not provided)",
-    ] = False,
-    bm25_query: Annotated[
-        Optional[str],
-        "Optional query to enable BM25-based content filtering for focused extraction",
-    ] = None,
-    timeout_ms: Annotated[int, "Per-page timeout in milliseconds"] = 80000,
-    include_html: Annotated[
-        bool, "Whether to include raw HTML in the response"
-    ] = False,
-) -> Crawl4aiApiResult:
-    """
-    Open a specific URL and extract readable page text as snippets using Crawl4AI Docker API.
-
-    Purpose: Fetch and parse webpage content (typically URLs returned from google_search) to extract clean, readable text.
-    This tool is useful for opening articles, documentation, and webpages to read their full content.
-
-    Returns:
-        Crawl4aiApiResult with url, success, markdown-formatted text, and optional fit_markdown/html/error fields
-    """
-    from athena_dr.agent.mcp_backend.apis.crawl4ai_docker_api import crawl_url_docker
-
-    result = await crawl_url_docker(
-        url=url,
-        base_url=base_url,
-        api_key=api_key,
-        bypass_cache=bypass_cache,
-        include_html=include_html,
-        use_ai2_config=use_ai2_config,
-        query=bm25_query,
-        ignore_links=ignore_links,
-        use_pruning=use_pruning,
-        timeout_ms=timeout_ms,
-    )
-    return result
-
-
-@mcp.tool(tags={"browse"})
-def webthinker_fetch_webpage_content(
-    url: str,
-    snippet: Optional[str] = None,
-    keep_links: bool = False,
-) -> dict:
-    """
-    Extract text content from a single URL (webpage or PDF) using advanced web parsing.
-
-    Args:
-        url: URL to extract text from
-        snippet: Optional snippet to search for and extract context around
-        keep_links: Whether to preserve links in the extracted text (default: False)
-
-    Returns:
-        Dictionary containing the URL and extracted text content
-    """
-    from athena_dr.agent.mcp_backend.local.webparsers.webthinker import (
-        extract_text_from_url,
-    )
-
-    text = extract_text_from_url(
-        url=url,
-        snippet=snippet,
-        keep_links=keep_links,
-    )
-
-    return {"url": url, "text": text}
 
 
 @mcp.tool(tags={"browse"})
