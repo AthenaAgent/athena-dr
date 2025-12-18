@@ -16,7 +16,7 @@ load_dotenv()
 @weave.op
 def run_workflow(problem: str):
     workflow = AutoReasonSearchWorkflow(
-        configuration="configs/auto_search_configs/openrouter.yml"
+        configuration="configs/auto_search_configs/vllm.yml"
         # configuration="configs/auto_search_configs/azure-gpt4.yml"
     )
     result = asyncio.run(workflow(problem=problem, dataset_name="short_form"))
