@@ -1,12 +1,15 @@
 import argparse
 import os
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Literal, Optional
+from urllib.parse import quote
 
 import aiohttp
 import dotenv
+import requests
 from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
+from tqdm.auto import tqdm
 
 from athena_dr.agent.mcp_backend.apis.jina_apis import (
     JinaWebpageResponse,
@@ -311,6 +314,226 @@ async def webthinker_fetch_webpage_content_async(
         )
 
     return {"url": url, "text": text}
+
+
+@mcp.tool(tags={"search"})
+async def thesportsdb_search(
+    query: str, search_type: Literal["league", "team", "player", "event", "venue"]
+) -> dict:
+    """
+    Search for any sports league, team, player, event, or venue using a text string
+
+    Args:
+        query: Search query string
+        search_type: Type of search to perform (league, team, player, event, venue)
+
+    Returns:
+        Dictionary containing search results with the following fields:
+        - results: List of search results
+    """
+
+    def thesportsdb_lookup(
+        lookup_id: str,
+        lookup_type: Literal[
+            "league",
+            "team",
+            "team_equipment",
+            "player",
+            "player_contracts",
+            "player_results",
+            "player_honours",
+            "player_milestones",
+            "player_teams",
+            "event",
+            "event_lineup",
+            "event_results",
+            "event_stats",
+            "event_timeline",
+            "event_tv",
+            "event_highlights",
+            "venue",
+        ],
+    ) -> dict:
+        slug = "_".join(lookup_id.strip().split()).lower()
+        slug = quote(slug, safe="-_")
+        base_url = "https://www.thesportsdb.com/api/v2/json"
+        url = f"{base_url.rstrip('/')}/lookup/{lookup_type}/{slug}"
+        headers = {
+            "X-API-KEY": os.getenv("SPORTSDB_API_KEY"),
+            "Accept": "application/json",
+        }
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        results = data.get("lookup")
+        return results if isinstance(results, list) else []
+
+    slug = "_".join(query.strip().split()).lower()
+    slug = quote(slug, safe="-_")
+    base_url = "https://www.thesportsdb.com/api/v2/json"
+    url = f"{base_url.rstrip('/')}/search/{search_type}/{slug}"
+    headers = {
+        "X-API-KEY": os.getenv("SPORTSDB_API_KEY"),
+        "Accept": "application/json",
+    }
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
+    data = resp.json()
+    search_results = data.get("search")
+    search_results = search_results if isinstance(search_results, list) else []
+
+    for result_index, result in tqdm(
+        enumerate(search_results),
+        total=len(search_results),
+        desc="Processing search results",
+    ):
+        for key, value in result.items():
+            if key == "idPlayer":
+                player_details = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="player"
+                )
+                player_contracts = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="player_contracts"
+                )
+                player_results = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="player_results"
+                )
+                player_honours = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="player_honours"
+                )
+                player_milestones = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="player_milestones"
+                )
+                player_teams = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="player_teams"
+                )
+                search_results[result_index][key] = {
+                    "id": value,
+                    "details": player_details,
+                    "contracts": player_contracts,
+                    "results": player_results,
+                    "honours": player_honours,
+                    "milestones": player_milestones,
+                    "teams": player_teams,
+                }
+            elif key == "idTeam":
+                team_details = thesportsdb_lookup(lookup_id=value, lookup_type="team")
+                team_equipment = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="team_equipment"
+                )
+                search_results[result_index][key] = {
+                    "id": value,
+                    "details": team_details,
+                    "equipment": team_equipment,
+                }
+            elif key == "idLeague":
+                league_details = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="league"
+                )
+                search_results[result_index][key] = {
+                    "id": value,
+                    "details": league_details,
+                }
+            elif key == "idEvent":
+                event_details = thesportsdb_lookup(lookup_id=value, lookup_type="event")
+                event_lineup = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="event_lineup"
+                )
+                event_results = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="event_results"
+                )
+                event_stats = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="event_stats"
+                )
+                event_timeline = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="event_timeline"
+                )
+                event_tv = thesportsdb_lookup(lookup_id=value, lookup_type="event_tv")
+                event_highlights = thesportsdb_lookup(
+                    lookup_id=value, lookup_type="event_highlights"
+                )
+                search_results[result_index][key] = {
+                    "id": value,
+                    "details": event_details,
+                    "lineup": event_lineup,
+                    "results": event_results,
+                    "stats": event_stats,
+                    "timeline": event_timeline,
+                    "tv": event_tv,
+                    "highlights": event_highlights,
+                }
+            elif key == "idVenue":
+                venue_details = thesportsdb_lookup(lookup_id=value, lookup_type="venue")
+                search_results[result_index][key] = {
+                    "id": value,
+                    "details": venue_details,
+                }
+    return search_results
+
+
+@mcp.tool(tags={"search"})
+async def thesportsdb_lookup(
+    lookup_id: str,
+    lookup_type: Literal[
+        "league",
+        "team",
+        "team_equipment",
+        "player",
+        "player_contracts",
+        "player_results",
+        "player_honours",
+        "player_milestones",
+        "player_teams",
+        "event",
+        "event_lineup",
+        "event_results",
+        "event_stats",
+        "event_timeline",
+        "event_tv",
+        "event_highlights",
+        "venue",
+    ],
+) -> dict:
+    """Lookup the following kinds of data for any sport using its unique ID:
+    - league using its unique ID {idLeague}
+    - team using its unique ID {idTeam}
+    - team_equipment using its unique ID {idTeam}
+    - player using its unique ID {idPlayer}
+    - player_contracts using its unique ID {idPlayer}
+    - player_results using its unique ID {idPlayer}
+    - player_honours using its unique ID {idPlayer}
+    - player_milestones using its unique ID {idPlayer}
+    - player_teams using its unique ID {idPlayer}
+    - event using its unique ID {idLeague}
+    - event_lineup using its unique ID {idEvent}
+    - event_results using its unique ID {idEvent}
+    - event_stats using its unique ID {idEvent}
+    - event_timeline using its unique ID {idEvent}
+    - event_tv using its unique ID {idEvent}
+    - event_highlights using its unique ID {idEvent}
+    - venue using its unique ID {idVenue}
+
+    Args:
+        lookup_id: The unique ID of the entity to lookup. This can be found found using the `thesportsdb_search` tool.
+        lookup_type: The type of entity to lookup
+
+    Returns:
+        Dictionary containing the lookup results with the following fields:
+        - results: List of lookup results
+    """
+    slug = "_".join(lookup_id.strip().split()).lower()
+    slug = quote(slug, safe="-_")
+    base_url = "https://www.thesportsdb.com/api/v2/json"
+    url = f"{base_url.rstrip('/')}/lookup/{lookup_type}/{slug}"
+    headers = {
+        "X-API-KEY": os.getenv("SPORTSDB_API_KEY"),
+        "Accept": "application/json",
+    }
+    resp = requests.get(url, headers=headers)
+    resp.raise_for_status()
+    data = resp.json()
+    results = data.get("lookup")
+    return {"results": results if isinstance(results, list) else []}
 
 
 def main():

@@ -22,17 +22,21 @@ system_prompt: |-
   2. browse_webpage 
   - Purpose: open a specific URL (typically one returned by google_search) and extract readable page text as snippets. 
   - Input via: <call_tool name="browse_webpage">https://example.com/article</call_tool>
-  - Output: webpage (see SEARCH RESULTS). 
+  - Output: webpage (see SEARCH RESULTS).
 
-  3. snippet_search 
-  - Purpose: focused snippet retrieval from scientific papers
-  - Input via: <call_tool name="snippet_search">your query</call_tool>
-  - Output: snippets from existing papers (see SEARCH RESULTS). 
-  - Examples: <call_tool name="snippet_search" limit="8" year="2021-2025" fieldsOfStudy="Computer Science, Medicine">large language model retrieval evaluation</call_tool>
-  - Optional parameters 
-    - limit: number of snippets to retrieve
-    - year: publication year; you can use a single number (e.g., 2024) or a range (e.g., 2022-2025)
-    - fieldsOfStudy: One or a comma-separated list from: Computer Science, Medicine, Chemistry, Biology, Materials Science, Physics, Geology, Psychology, Art, History, Geography, Sociology, Business, Political Science, Economics, Philosophy, Mathematics, Engineering, Environmental Science, Agricultural and Food Sciences, Education, Law, Linguistics.
+  3. sports_search (optional, if enabled)
+  - Purpose: search for sports-related information (leagues, teams, players, events, venues).
+  - Input via: <call_tool name="sports_search" search_type="team|player|league|event|venue">query</call_tool>
+  - Output: sports data snippets (see SEARCH RESULTS).
+  - Optional parameters:
+    - search_type: Type of entity to search for (team, player, league, event, venue)
+
+  4. sports_lookup (optional, if enabled)
+  - Purpose: lookup detailed information about a specific sports entity using its unique ID.
+  - Input via: <call_tool name="sports_lookup" lookup_type="team|player|league|event|venue">entity_id</call_tool>
+  - Output: detailed sports data (see SEARCH RESULTS).
+  - Optional parameters:
+    - lookup_type: Type of entity to lookup (team, player, league, event, venue, player_contracts, player_results, player_honours, event_lineup, event_stats, etc.)
 
   ## Tool Output
   - After you issue a tool call, we will execute it and return results wrapped in <tool_output> tags. 
