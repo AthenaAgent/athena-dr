@@ -38,18 +38,12 @@ The approach involves 2 steps:
 
 2. **Deep Research Agent Scaffold**: We will use a custom scaffold built on top of DR-Tulu's agentic scaffold, extending its capabilities with additional research-specific tools. The reason to build on top of DR-Tulu is because of its simple MCP-based ReACT architecture that's both easy to extend with more tools, and battle hardened through real-world use.
     - Available tools:
-        - `semantic_scholar_search`: Search for academic papers using Semantic Scholar API.
-        - `semantic_scholar_snippet_search`: Focused snippet retrieval from scientific papers using Semantic Scholar API.
-        - `pubmed_search`: Search for medical and scientific papers using PubMed API.
         - `vllm_hosted_reranker`: Rerank a list of documents based on their relevance to the query using VLLM hosted reranker.
         - `massive_serve_search`: Search for documents using massive-serve API for dense passage retrieval.
         - `serper_google_webpage_search`: General web search using Google Search (based on Serper.dev API). Perform general web search to find relevant webpages, articles, and online resources.
-        - `serper_google_scholar_search`: Search for academic papers using google scholar (based on Serper.dev API).
         - `serper_fetch_webpage_content`: Fetch the content of a webpage using Serper.dev API.
         - `jina_fetch_webpage_content`: Fetch the content of a webpage using Jina Reader API with timeout support.
         - `crawl4ai_fetch_webpage_content`: Open a specific URL and extract readable page text as snippets using Crawl4AI.
-        - `crawl4ai_docker_fetch_webpage_content`: Open a specific URL and extract readable page text as snippets using Crawl4AI Docker API.
-        - `webthinker_fetch_webpage_content`: Extract text content from a single URL (webpage or PDF) using advanced web parsing.
         - `webthinker_fetch_webpage_content_async`: Asynchronously extract text content from a single URL (webpage or PDF) using advanced web parsing.
     - Suggestions for more tools:
         - `memory_read`: Read from a memory store for persistent context.
@@ -72,3 +66,22 @@ The approach involves 2 steps:
     - [ScholarQA](https://allenai.org/blog/ai2-scholarqa)
 
 4. **Reinforcement Learning Fine-tuning**: If we have time and compute, we will do RL using the same tools as SFT. If we need to customize the model to for an enterprise customer with cutom tool calls, we can also introduce them in scaffold the RL step.
+
+
+## Proposals
+
+### Proposed AdditionalTools
+
+1. **Code Interpreter**: A sandboxed code interpreter that can execute shell/python code snippets in a sandboxed environment using [Sandboxfusion](https://bytedance.github.io/SandboxFusion/).
+2. **Memory Read/Write**: A memory read/write tool that can read from and write to a memory store for persistent context.
+3. **Sports DB Search**: A tool that can search for very specific information about sports events, players, teams, etc. (Specifically [thesportsdb](https://www.thesportsdb.com))
+
+### An Updated Version of Evol Instruct
+
+We can use the same approach as [Evol Instruct](https://arxiv.org/pdf/2304.12244) to rewrite the prompt into a more complex version.
+
+![](./assets/evol-instruct.png)
+
+There's one more thing that we can do on top of Evol Instruct to come up with more complex queries...
+We can take take all the prompts from a dataset, embed them using a SoTA encoder model and then use a clustering algorithm to cluster the prompts into groups.
+We then sample each 2-3 prompts from each cluster and then use Evol Instruct to rewrite them into a more complex version.

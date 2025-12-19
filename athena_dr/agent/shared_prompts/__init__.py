@@ -2,6 +2,10 @@ from athena_dr.agent.shared_prompts.eval import (
     GRADER_SYSTEM_PROMPT,
     SHORT_FORM_ANSWER_EVALUATION_USER_PROMPT_FORMAT,
 )
+from athena_dr.agent.shared_prompts.evol_instruct import (
+    DEEPENING_PROMPT,
+    CONCRETIZATION_PROMPT,
+)
 from athena_dr.agent.shared_prompts.unified_tool_calling import (
     UNIFIED_TOOL_CALLING_PROMPTS,
     UNIFIED_TOOL_CALLING_STRUCTURED_PROMPTS,
@@ -12,4 +16,6 @@ __all__ = [
     "UNIFIED_TOOL_CALLING_STRUCTURED_PROMPTS",
     "GRADER_SYSTEM_PROMPT",
     "SHORT_FORM_ANSWER_EVALUATION_USER_PROMPT_FORMAT",
+    "DEEPENING_PROMPT",
+    "CONCRETIZATION_PROMPT",
 ]

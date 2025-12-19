@@ -1,7 +1,4 @@
-import json
-from typing import Any
 
-import aiohttp
 import modal
 
 vllm_image = (
@@ -71,4 +68,3 @@ def serve():
     print(cmd)
 
     subprocess.Popen(" ".join(cmd), shell=True)
-
