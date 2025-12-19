@@ -136,6 +136,66 @@ Rerank a list of documents based on their relevance to the query using VLLM host
 
 ---
 
+## Sports Database Tools
+
+### `thesportsdb_search`
+
+Search for any sports league, team, player, event, or venue using a text string. This tool automatically enriches search results with comprehensive details by performing lookups for each entity found.
+
+**Tags**: `search`
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `query` | `str` | Yes | - | Search query string |
+| `search_type` | `Literal["league", "team", "player", "event", "venue"]` | Yes | - | Type of search to perform |
+
+**Returns**: List of search results. Each result is automatically enriched with detailed information:
+- **Player results**: Includes details, contracts, results, honours, milestones, and teams
+- **Team results**: Includes details and equipment
+- **League results**: Includes details
+- **Event results**: Includes details, lineup, results, stats, timeline, TV broadcasts, and highlights
+- **Venue results**: Includes details
+
+**Note**: Requires `SPORTSDB_API_KEY` environment variable.
+
+---
+
+### `thesportsdb_lookup`
+
+Lookup detailed information for any sport entity using its unique ID. This tool supports various entity types and their related data.
+
+**Tags**: `lookup`
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `lookup_id` | `str` | Yes | - | The unique ID of the entity (e.g., `idPlayer`, `idTeam`, `idLeague`, `idEvent`, `idVenue`). Can be found using `thesportsdb_search` |
+| `lookup_type` | `Literal[...]` | Yes | - | The type of entity/data to lookup (see supported types below) |
+
+**Supported Lookup Types**:
+- `league` - League details using `{idLeague}`
+- `team` - Team details using `{idTeam}`
+- `team_equipment` - Team equipment using `{idTeam}`
+- `player` - Player details using `{idPlayer}`
+- `player_contracts` - Player contracts using `{idPlayer}`
+- `player_results` - Player results using `{idPlayer}`
+- `player_honours` - Player honours/awards using `{idPlayer}`
+- `player_milestones` - Player milestones using `{idPlayer}`
+- `player_teams` - Player team history using `{idPlayer}`
+- `event` - Event details using `{idEvent}`
+- `event_lineup` - Event lineup using `{idEvent}`
+- `event_results` - Event results using `{idEvent}`
+- `event_stats` - Event statistics using `{idEvent}`
+- `event_timeline` - Event timeline using `{idEvent}`
+- `event_tv` - Event TV broadcasts using `{idEvent}`
+- `event_highlights` - Event highlights using `{idEvent}`
+- `venue` - Venue details using `{idVenue}`
+
+**Returns**: List of lookup results specific to the requested entity type.
+
+**Note**: Requires `SPORTSDB_API_KEY` environment variable.
+
+---
+
 ## Health Check Endpoint
 
 The server also exposes a health check endpoint:
