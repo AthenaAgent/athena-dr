@@ -1778,3 +1778,197 @@ class VllmHostedRerankerTool(MCPRerankerTool):
         )
 
         return reranked_documents
+
+
+class TheSportsDBSearchTool(MCPSearchTool):
+    """Tool for searching sports data using TheSportsDB API via MCP"""
+
+    def __init__(
+        self,
+        tool_parser: Optional[ToolCallParser | str] = None,
+        number_documents_to_search: int = 10,
+        timeout: int = 60,
+        search_type: str = "team",
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            tool_parser=tool_parser,
+            number_documents_to_search=number_documents_to_search,
+            timeout=timeout,
+            name=name,
+            description=description,
+            excluded_arguments=["search_type"],
+            **kwargs,
+        )
+        self.search_type = search_type
+
+    def get_mcp_tool_name(self) -> str:
+        return "thesportsdb_search"
+
+    def get_mcp_params(self, tool_call_info: ToolCallInfo) -> Dict[str, Any]:
+        """Build parameters for TheSportsDB search API"""
+        params = {
+            "query": tool_call_info.content,
+            "search_type": tool_call_info.parameters.get("search_type", self.search_type),
+        }
+        return params
+
+    def extract_documents(self, raw_output: Dict[str, Any]) -> List[Document]:
+        """Extract documents from TheSportsDB search response"""
+        # TheSportsDB returns a list of results directly
+        if isinstance(raw_output, list):
+            results = raw_output
+        else:
+            results = raw_output.get("results", [])
+        
+        documents = []
+        
+        for result in results[:self.number_documents_to_search]:
+            if isinstance(result, dict):
+                # Build a comprehensive snippet from the result
+                snippet_parts = []
+                
+                # Extract key information based on entity type
+                if "strTeam" in result:
+                    snippet_parts.append(f"Team: {result.get('strTeam', '')}")
+                    if "strLeague" in result:
+                        snippet_parts.append(f"League: {result.get('strLeague', '')}")
+                    if "strStadium" in result:
+                        snippet_parts.append(f"Stadium: {result.get('strStadium', '')}")
+                    if "strDescriptionEN" in result:
+                        desc = result.get('strDescriptionEN', '')[:200]
+                        snippet_parts.append(f"Description: {desc}...")
+                
+                elif "strPlayer" in result:
+                    snippet_parts.append(f"Player: {result.get('strPlayer', '')}")
+                    if "strTeam" in result:
+                        snippet_parts.append(f"Team: {result.get('strTeam', '')}")
+                    if "strPosition" in result:
+                        snippet_parts.append(f"Position: {result.get('strPosition', '')}")
+                    if "strNationality" in result:
+                        snippet_parts.append(f"Nationality: {result.get('strNationality', '')}")
+                
+                elif "strEvent" in result:
+                    snippet_parts.append(f"Event: {result.get('strEvent', '')}")
+                    if "dateEvent" in result:
+                        snippet_parts.append(f"Date: {result.get('dateEvent', '')}")
+                    if "strLeague" in result:
+                        snippet_parts.append(f"League: {result.get('strLeague', '')}")
+                
+                elif "strLeague" in result and "strTeam" not in result:
+                    snippet_parts.append(f"League: {result.get('strLeague', '')}")
+                    if "strSport" in result:
+                        snippet_parts.append(f"Sport: {result.get('strSport', '')}")
+                    if "strCountry" in result:
+                        snippet_parts.append(f"Country: {result.get('strCountry', '')}")
+                
+                elif "strVenue" in result:
+                    snippet_parts.append(f"Venue: {result.get('strVenue', '')}")
+                    if "strLocation" in result:
+                        snippet_parts.append(f"Location: {result.get('strLocation', '')}")
+                
+                # Create title from the main entity name
+                title = (
+                    result.get('strTeam') or 
+                    result.get('strPlayer') or 
+                    result.get('strEvent') or 
+                    result.get('strLeague') or 
+                    result.get('strVenue') or 
+                    'Sports Entity'
+                )
+                
+                snippet = " | ".join(snippet_parts) if snippet_parts else str(result)
+                
+                doc = Document(
+                    title=title.strip(),
+                    snippet=snippet.strip(),
+                    url="",  # TheSportsDB doesn't provide URLs
+                    text=None,
+                    score=None,
+                )
+                
+                if doc.title or doc.snippet:
+                    documents.append(doc)
+        
+        return documents
+
+
+class TheSportsDBLookupTool(MCPSearchTool):
+    """Tool for looking up detailed sports data using TheSportsDB API via MCP"""
+
+    def __init__(
+        self,
+        tool_parser: Optional[ToolCallParser | str] = None,
+        number_documents_to_search: int = 10,
+        timeout: int = 60,
+        lookup_type: str = "team",
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            tool_parser=tool_parser,
+            number_documents_to_search=number_documents_to_search,
+            timeout=timeout,
+            name=name,
+            description=description,
+            excluded_arguments=["lookup_type"],
+            **kwargs,
+        )
+        self.lookup_type = lookup_type
+
+    def get_mcp_tool_name(self) -> str:
+        return "thesportsdb_lookup"
+
+    def get_mcp_params(self, tool_call_info: ToolCallInfo) -> Dict[str, Any]:
+        """Build parameters for TheSportsDB lookup API"""
+        params = {
+            "lookup_id": tool_call_info.content,
+            "lookup_type": tool_call_info.parameters.get("lookup_type", self.lookup_type),
+        }
+        return params
+
+    def extract_documents(self, raw_output: Dict[str, Any]) -> List[Document]:
+        """Extract documents from TheSportsDB lookup response"""
+        results = raw_output.get("results", [])
+        
+        documents = []
+        
+        for result in results[:self.number_documents_to_search]:
+            if isinstance(result, dict):
+                # Build a comprehensive snippet from the result
+                snippet_parts = []
+                
+                # Extract detailed information based on entity type
+                for key, value in result.items():
+                    if value and isinstance(value, (str, int, float)):
+                        # Skip ID fields and very long descriptions
+                        if not key.startswith('id') and not key.startswith('str') or key in ['strTeam', 'strPlayer', 'strEvent', 'strLeague', 'strVenue']:
+                            snippet_parts.append(f"{key}: {value}")
+                
+                # Create title from the main entity name
+                title = (
+                    result.get('strTeam') or 
+                    result.get('strPlayer') or 
+                    result.get('strEvent') or 
+                    result.get('strLeague') or 
+                    result.get('strVenue') or 
+                    'Sports Entity Details'
+                )
+                
+                snippet = "\n".join(snippet_parts[:20]) if snippet_parts else str(result)
+                
+                doc = Document(
+                    title=title.strip(),
+                    snippet=snippet.strip(),
+                    url="",
+                    text=None,
+                    score=None,
+                )
+                
+                if doc.title or doc.snippet:
+                    documents.append(doc)
+        
+        return documents

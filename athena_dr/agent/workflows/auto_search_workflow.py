@@ -10,6 +10,8 @@ from athena_dr.agent.tool_interface.mcp_tools import (
     SemanticScholarSnippetSearchTool,
     SerperBrowseTool,
     SerperSearchTool,
+    TheSportsDBLookupTool,
+    TheSportsDBSearchTool,
 )
 from athena_dr.agent.workflows.base import BaseWorkflow, BaseWorkflowConfiguration
 from athena_dr.agent.workflows.sub_agents import AnswerAgent, NoBrowseTool, SearchAgent
@@ -66,6 +68,11 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
         browse_context_char_length: int = 6000
         crawl4ai_use_docker_version: bool = False
         crawl4ai_use_ai2_config: bool = False
+
+        # TheSportsDB configuration
+        enable_sportsdb_tools: bool = False
+        sportsdb_search_type: str = "team"
+        sportsdb_lookup_type: str = "team"
 
         prompt_version: str = "v20250907"
 
@@ -192,6 +199,32 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
             raise ValueError(f"Invalid browse tool name: {cfg.browse_tool_name}")
         print("Using browse tool: ", self.browse_tool)
 
+        # TheSportsDB tools (optional)
+        self.sportsdb_search_tool = None
+        self.sportsdb_lookup_tool = None
+        if cfg.enable_sportsdb_tools:
+            self.sportsdb_search_tool = TheSportsDBSearchTool(
+                tool_parser=cfg.tool_parser,
+                number_documents_to_search=cfg.number_documents_to_search,
+                timeout=cfg.search_timeout,
+                search_type=cfg.sportsdb_search_type,
+                name="sports_search",
+                transport_type=mcp_transport_type,
+                mcp_executable=mcp_executable,
+                mcp_port=mcp_port,
+            )
+            self.sportsdb_lookup_tool = TheSportsDBLookupTool(
+                tool_parser=cfg.tool_parser,
+                number_documents_to_search=cfg.number_documents_to_search,
+                timeout=cfg.search_timeout,
+                lookup_type=cfg.sportsdb_lookup_type,
+                name="sports_lookup",
+                transport_type=mcp_transport_type,
+                mcp_executable=mcp_executable,
+                mcp_port=mcp_port,
+            )
+            print("TheSportsDB tools enabled: sports_search, sports_lookup")
+
         if cfg.use_browse_agent:
             with LLMToolClient(
                 model_name=cfg.browse_agent_model_name,
@@ -218,9 +251,14 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
             base_url=cfg.search_agent_base_url,
             api_key=cfg.search_agent_api_key,
         ) as client:
+            # Build tools list
+            tools_list = [self.search_tool, self.search_tool2, self.composed_browse_tool]
+            if cfg.enable_sportsdb_tools:
+                tools_list.extend([self.sportsdb_search_tool, self.sportsdb_lookup_tool])
+            
             self.search_agent = SearchAgent(
                 client=client,
-                tools=[self.search_tool, self.search_tool2, self.composed_browse_tool],
+                tools=tools_list,
                 prompt_version=cfg.prompt_version,
             )
             self.answer_agent = AnswerAgent(
@@ -282,9 +320,9 @@ class AutoReasonSearchWorkflow(BaseWorkflow):
                 failed_tool_calls += 1
                 failed_tool_call_errors.append(tool_output.error)
 
-            if tool_output.tool_name in ["snippet_search", "google_search"]:
+            if tool_output.tool_name in ["snippet_search", "google_search", "sports_search", "sports_lookup"]:
                 searched_links.extend(
-                    [document.url for document in tool_output.documents]
+                    [document.url for document in tool_output.documents if document.url]
                 )
 
             if tool_output.tool_name == "browse_webpage":
