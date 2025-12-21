@@ -6,6 +6,7 @@ from smolagents import (
     MultiStepAgent,
     OpenAIModel,
     ToolCallingAgent,
+    PythonInterpreterTool,
 )
 
 from athena_dr.agent.prompts import (
@@ -46,6 +47,7 @@ class DeepResearchAgent(weave.Model):
             JinaFetchTool(),
             TheSportsDBSearchTool(),
             TheSportsDBLookupTool(),
+            PythonInterpreterTool(),
         ]
         self._model = OpenAIModel(
             model_id=self.config.model_name,
