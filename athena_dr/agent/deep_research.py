@@ -2,7 +2,6 @@ from typing import Any, Tuple
 
 import weave
 from smolagents import (
-    GoogleSearchTool,
     Model,
     MultiStepAgent,
     OpenAIModel,
@@ -13,6 +12,7 @@ from athena_dr.agent.prompts import (
     DEEP_RESEARCH_PROMPT_TEMPLATE,
     TOOL_CALLING_AGENT_DESCRIPTION,
 )
+from athena_dr.agent.tools import SerperSearchTool
 from athena_dr.utils import WorkflowConfig
 
 
@@ -34,7 +34,7 @@ class DeepResearchAgent(weave.Model):
     _manager_agent: MultiStepAgent
 
     def model_post_init(self, context: Any, /) -> None:
-        self._tools = [GoogleSearchTool(provider="serper")]
+        self._tools = [SerperSearchTool()]
         self._model = OpenAIModel(
             model_id=self.config.model_name,
             api_base=self.config.base_url,
@@ -68,4 +68,16 @@ class DeepResearchAgent(weave.Model):
         query = DEEP_RESEARCH_PROMPT_TEMPLATE.format(task=query)
         final_result = self._tool_calling_agent.run(query)
         agent_memory = self._tool_calling_agent.write_memory_to_messages()
-        return final_result, agent_memory
+        trace = []
+        for step in agent_memory:
+            trace.append(
+                {
+                    "role": step.role,
+                    "content": step.content[0]["text"],
+                }
+            )
+        return {
+            "final_result": final_result,
+            "agent_memory": agent_memory,
+            "trace": trace,
+        }
