@@ -1,0 +1,71 @@
+from typing import Any, Tuple
+
+import weave
+from smolagents import (
+    GoogleSearchTool,
+    Model,
+    MultiStepAgent,
+    OpenAIModel,
+    ToolCallingAgent,
+)
+
+from athena_dr.agent.prompts import (
+    DEEP_RESEARCH_PROMPT_TEMPLATE,
+    TOOL_CALLING_AGENT_DESCRIPTION,
+)
+from athena_dr.utils import WorkflowConfig
+
+
+@weave.op
+def increment_web_agent_token_counts(
+    final_answer: str, memory_step: int, agent: MultiStepAgent
+):
+    token_counts_web = agent.monitor.get_total_token_counts()
+    token_counts_web.input_tokens += token_counts_web.input_tokens
+    token_counts_web.output_tokens += token_counts_web.output_tokens
+    return True
+
+
+class DeepResearchAgent(weave.Model):
+    config: WorkflowConfig
+    _tools: list
+    _model: Model
+    _tool_calling_agent: MultiStepAgent
+    _manager_agent: MultiStepAgent
+
+    def model_post_init(self, context: Any, /) -> None:
+        self._tools = [GoogleSearchTool(provider="serper")]
+        self._model = OpenAIModel(
+            model_id=self.config.model_name,
+            api_base=self.config.base_url,
+            api_key=self.config.api_key,
+            max_tokens=self.config.max_tokens,
+            temperature=self.config.temperature,
+        )
+        self._tool_calling_agent = ToolCallingAgent(
+            model=self._model,
+            tools=self._tools,
+            max_steps=5,
+            verbosity_level=2,
+            planning_interval=1,
+            name="search_agent",
+            description=TOOL_CALLING_AGENT_DESCRIPTION,
+            provide_run_summary=True,
+            final_answer_checks=[increment_web_agent_token_counts],
+        )
+        # self._manager_agent = CodeAgent(
+        #     model=self._model,
+        #     tools=[FinalAnswerTool()],
+        #     max_steps=12,
+        #     verbosity_level=2,
+        #     additional_authorized_imports=["*"],
+        #     planning_interval=4,
+        #     managed_agents=[self._tool_calling_agent],
+        # )
+
+    @weave.op
+    def predict(self, query: str) -> Tuple[str, list]:
+        query = DEEP_RESEARCH_PROMPT_TEMPLATE.format(task=query)
+        final_result = self._tool_calling_agent.run(query)
+        agent_memory = self._tool_calling_agent.write_memory_to_messages()
+        return final_result, agent_memory
