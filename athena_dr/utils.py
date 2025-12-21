@@ -11,7 +11,8 @@ class WorkflowConfig:
     base_url: str
     max_tokens: int
     temperature: float
-    max_tool_calls: int
+    agent_max_steps: int
+    agent_name: str
 
 
 def get_config(config_path: os.PathLike) -> WorkflowConfig:
