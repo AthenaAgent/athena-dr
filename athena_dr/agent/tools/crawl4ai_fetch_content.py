@@ -1,14 +1,13 @@
 import asyncio
+from threading import Thread
 from typing import Dict, Optional
 
+import weave
 from pydantic import BaseModel, Field
-
-from athena_dr.agent.mcp_backend.cache import cached
+from smolagents import Tool
 
 
 class Crawl4AiResult(BaseModel):
-    """Result structure returned by crawl4ai fetch functions."""
-
     url: str
     success: bool
     markdown: str
@@ -21,8 +20,7 @@ class Crawl4AiResult(BaseModel):
     error: Optional[str] = Field(None, description="Only present when success=False")
 
 
-@cached()
-async def fetch_markdown(
+async def _fetch_markdown_async(
     url: str,
     query: Optional[str] = None,
     ignore_links: bool = True,
@@ -32,24 +30,7 @@ async def fetch_markdown(
     timeout_ms: int = 60000,
     include_html: bool = False,
 ) -> Crawl4AiResult:
-    """
-    Fetch webpage content using Crawl4AI and return markdown (optionally HTML).
-
-    Args:
-            url: Target URL
-            query: Optional BM25 query to keep relevant content
-            ignore_links: If True, remove hyperlinks in markdown
-            use_pruning: If True (and no query), apply pruning content filter
-            bypass_cache: If True, bypass crawler cache
-            headless: Run browser in headless mode
-            timeout_ms: Per-page timeout in milliseconds
-            include_html: Whether to include raw HTML in the response
-
-    Returns:
-            Dictionary with fields: url, success, markdown, fit_markdown (optional), html (optional), error (on failure)
-    """
     try:
-        # Lazy imports to avoid hard dependency at module import time
         from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
         from crawl4ai.content_filter_strategy import (
             BM25ContentFilter,
@@ -141,8 +122,7 @@ async def fetch_markdown(
         )
 
 
-@cached()
-def fetch_markdown_sync(
+def _fetch_markdown_sync(
     url: str,
     query: Optional[str] = None,
     ignore_links: bool = True,
@@ -152,19 +132,13 @@ def fetch_markdown_sync(
     timeout_ms: int = 80000,
     include_html: bool = False,
 ) -> Crawl4AiResult:
-    """
-    Synchronous wrapper around fetch_markdown. Safe to call from environments with or without an existing event loop.
-    """
     try:
-        # If already inside a running loop, dispatch to a separate loop in a thread
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             loop = None
 
         if loop and loop.is_running():
-            from threading import Thread
-
             result_holder: Dict[str, Crawl4AiResult] = {}
 
             def _runner():
@@ -172,7 +146,7 @@ def fetch_markdown_sync(
                 asyncio.set_event_loop(new_loop)
                 try:
                     result_holder["result"] = new_loop.run_until_complete(
-                        fetch_markdown(
+                        _fetch_markdown_async(
                             url=url,
                             query=query,
                             ignore_links=ignore_links,
@@ -201,7 +175,7 @@ def fetch_markdown_sync(
             )
         else:
             return asyncio.run(
-                fetch_markdown(
+                _fetch_markdown_async(
                     url=url,
                     query=query,
                     ignore_links=ignore_links,
@@ -220,3 +194,78 @@ def fetch_markdown_sync(
             html="",
             error=str(e),
         )
+
+
+class Crawl4AIFetchTool(Tool):
+    name = "crawl4ai_fetch_webpage_content"
+    description = """
+    Open a specific URL and extract readable page text as snippets using Crawl4AI.
+    
+    Purpose: Fetch and parse webpage content (typically URLs returned from google_search) to extract clean, readable text.
+    This tool is useful for opening articles, documentation, and webpages to read their full content.
+    """
+    inputs = {
+        "url": {
+            "type": "string",
+            "description": "URL to fetch and extract content from",
+        },
+        "ignore_links": {
+            "type": "boolean",
+            "description": "If True, remove hyperlinks in markdown",
+            "default": True,
+            "nullable": True,
+        },
+        "use_pruning": {
+            "type": "boolean",
+            "description": "Apply pruning content filter to extract main content (used when bm25_query is not provided)",
+            "default": False,
+            "nullable": True,
+        },
+        "bm25_query": {
+            "type": "string",
+            "description": "Optional query to enable BM25-based content filtering for focused extraction",
+            "nullable": True,
+        },
+        "bypass_cache": {
+            "type": "boolean",
+            "description": "If True, bypass Crawl4AI cache",
+            "default": True,
+            "nullable": True,
+        },
+        "timeout_ms": {
+            "type": "integer",
+            "description": "Per-page timeout in milliseconds",
+            "default": 80000,
+            "nullable": True,
+        },
+        "include_html": {
+            "type": "boolean",
+            "description": "Whether to include raw HTML in the response",
+            "default": False,
+            "nullable": True,
+        },
+    }
+    output_type = "object"
+
+    @weave.op
+    def forward(
+        self,
+        url: str,
+        ignore_links: bool = True,
+        use_pruning: bool = False,
+        bm25_query: Optional[str] = None,
+        bypass_cache: bool = True,
+        timeout_ms: int = 80000,
+        include_html: bool = False,
+    ) -> dict:
+        result = _fetch_markdown_sync(
+            url=url,
+            query=bm25_query,
+            ignore_links=ignore_links,
+            use_pruning=use_pruning,
+            bypass_cache=bypass_cache,
+            headless=True,
+            timeout_ms=timeout_ms,
+            include_html=include_html,
+        )
+        return result.model_dump()
