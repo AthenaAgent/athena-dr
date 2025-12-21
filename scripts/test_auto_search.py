@@ -8,4 +8,6 @@ load_dotenv()
 weave.init(project_name="athena-dr")
 config = get_config("configs/deep_research.yml")
 agent = DeepResearchAgent(config=config)
-agent.predict("Which team does Lionel Messi play for as of December 2025?")
+agent.predict(
+    "According to the Wikipedia article on Academic publishing, what dispute rate did Robert K. Merton report for simultaneous discoveries in the 17th century?"
+)

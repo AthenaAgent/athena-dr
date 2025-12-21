@@ -12,7 +12,7 @@ from athena_dr.agent.prompts import (
     DEEP_RESEARCH_PROMPT_TEMPLATE,
     TOOL_CALLING_AGENT_DESCRIPTION,
 )
-from athena_dr.agent.tools import SerperSearchTool
+from athena_dr.agent.tools import Crawl4AIFetchTool, SerperSearchTool
 from athena_dr.utils import WorkflowConfig
 
 
@@ -34,7 +34,7 @@ class DeepResearchAgent(weave.Model):
     _manager_agent: MultiStepAgent
 
     def model_post_init(self, context: Any, /) -> None:
-        self._tools = [SerperSearchTool()]
+        self._tools = [SerperSearchTool(), Crawl4AIFetchTool()]
         self._model = OpenAIModel(
             model_id=self.config.model_name,
             api_base=self.config.base_url,
@@ -53,15 +53,6 @@ class DeepResearchAgent(weave.Model):
             provide_run_summary=True,
             final_answer_checks=[increment_web_agent_token_counts],
         )
-        # self._manager_agent = CodeAgent(
-        #     model=self._model,
-        #     tools=[FinalAnswerTool()],
-        #     max_steps=12,
-        #     verbosity_level=2,
-        #     additional_authorized_imports=["*"],
-        #     planning_interval=4,
-        #     managed_agents=[self._tool_calling_agent],
-        # )
 
     @weave.op
     def predict(self, query: str) -> Tuple[str, list]:
