@@ -12,7 +12,13 @@ from athena_dr.agent.prompts import (
     DEEP_RESEARCH_PROMPT_TEMPLATE,
     TOOL_CALLING_AGENT_DESCRIPTION,
 )
-from athena_dr.agent.tools import Crawl4AIFetchTool, JinaFetchTool, SerperSearchTool
+from athena_dr.agent.tools import (
+    Crawl4AIFetchTool,
+    JinaFetchTool,
+    SerperSearchTool,
+    TheSportsDBLookupTool,
+    TheSportsDBSearchTool,
+)
 from athena_dr.utils import WorkflowConfig
 
 
@@ -34,7 +40,13 @@ class DeepResearchAgent(weave.Model):
     _manager_agent: MultiStepAgent
 
     def model_post_init(self, context: Any, /) -> None:
-        self._tools = [SerperSearchTool(), Crawl4AIFetchTool(), JinaFetchTool()]
+        self._tools = [
+            SerperSearchTool(),
+            Crawl4AIFetchTool(),
+            JinaFetchTool(),
+            TheSportsDBSearchTool(),
+            TheSportsDBLookupTool(),
+        ]
         self._model = OpenAIModel(
             model_id=self.config.model_name,
             api_base=self.config.base_url,
