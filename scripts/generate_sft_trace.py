@@ -5,7 +5,7 @@ from athena_dr import AnswerType, DeepResearchAgent
 from athena_dr.utils import get_config
 
 load_dotenv()
-config = get_config("configs/deep_research.yml")
+config = get_config("configs/modal.yml")
 dataset = load_dataset("hotpotqa/hotpot_qa", "distractor", split="train")
 agent = DeepResearchAgent(config=config)
 agent.generate_sft_traces(
@@ -13,6 +13,7 @@ agent.generate_sft_traces(
     answer_type=AnswerType.EXACT,
     prompt_column="question",
     answer_column="answer",
-    max_examples=5,
+    min_index=0,
+    max_index=5,
     dataset_name="AthenaAgent42/Hotpotqa-traces",
 )

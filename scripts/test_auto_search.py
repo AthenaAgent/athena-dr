@@ -6,7 +6,7 @@ from athena_dr.utils import get_config
 
 load_dotenv()
 weave.init(project_name="athena-dr")
-config = get_config("configs/deep_research.yml")
+config = get_config("configs/modal.yml")
 agent = DeepResearchAgent(config=config)
 agent.predict(
     query="According to the Wikipedia article on Academic publishing, what dispute rate did Robert K. Merton report for simultaneous discoveries in the 17th century?",

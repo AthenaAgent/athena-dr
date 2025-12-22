@@ -10,12 +10,6 @@ cd athena-dr
 uv sync --all-extras --all-groups
 ```
 
-Run MCP server using the following command
-
-```bash
-MCP_CACHE_DIR=".cache-$(hostname)" athena-dr-mcp
-```
-
 # Docs
 
 1. Install the dependencies using `uv sync --group docs`

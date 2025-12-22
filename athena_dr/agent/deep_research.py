@@ -1,4 +1,5 @@
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from enum import Enum
 from typing import Any, Tuple
 
@@ -168,13 +169,46 @@ class DeepResearchAgent(weave.Model):
         prompt_column: str,
         answer_column: str,
         dataset_name: str | None = None,
-        max_examples: int | None = None,
+        min_index: int | None = None,
+        max_index: int | None = None,
     ) -> list[dict]:
-        dataset = dataset.select(range(max_examples)) if max_examples else dataset
+        if min_index is not None or max_index is not None:
+            start = min_index if min_index is not None else 0
+            end = max_index if max_index is not None else len(dataset)
+            dataset = dataset.select(range(start, end))
+        else:
+            dataset = dataset
         silent_logger = AgentLogger(level=0)
         self._tool_calling_agent.logger = silent_logger
         self._tool_calling_agent.monitor.logger = silent_logger
         data_points = []
+
+        def process_data_point(data_point):
+            try:
+                result = self.predict(
+                    data_point[prompt_column], answer_type=answer_type
+                )
+                # Calculate total input and output tokens across all steps
+                total_input_tokens = sum(
+                    step["input_tokens"] for step in result["token_usage_per_step"]
+                )
+                total_output_tokens = sum(
+                    step["output_tokens"] for step in result["token_usage_per_step"]
+                )
+
+                return {
+                    "prompt": data_point[prompt_column],
+                    "original_answer": data_point[answer_column],
+                    "answer": result["final_result"],
+                    "conversations": result["trace"],
+                    "tool_calls": result["tool_calls"],
+                    "total_tool_calls": result["total_tool_calls"],
+                    "total_input_tokens": total_input_tokens,
+                    "total_output_tokens": total_output_tokens,
+                    "tool_calling_errors": result["tool_calling_errors"],
+                }
+            except Exception as e:
+                return None
 
         with Progress(
             SpinnerColumn(),
@@ -185,35 +219,18 @@ class DeepResearchAgent(weave.Model):
         ) as progress:
             task = progress.add_task("Generating SFT Traces", total=len(dataset))
 
-            for data_point in dataset:
-                try:
-                    result = self.predict(
-                        data_point[prompt_column], answer_type=answer_type
-                    )
-                    # Calculate total input and output tokens across all steps
-                    total_input_tokens = sum(
-                        step["input_tokens"] for step in result["token_usage_per_step"]
-                    )
-                    total_output_tokens = sum(
-                        step["output_tokens"] for step in result["token_usage_per_step"]
-                    )
+            with ThreadPoolExecutor(
+                max_workers=self.config.max_agent_workers
+            ) as executor:
+                futures = {
+                    executor.submit(process_data_point, data_point): data_point
+                    for data_point in dataset
+                }
 
-                    data_points.append(
-                        {
-                            "prompt": data_point[prompt_column],
-                            "original_answer": data_point[answer_column],
-                            "answer": result["final_result"],
-                            "conversations": result["trace"],
-                            "tool_calls": result["tool_calls"],
-                            "total_tool_calls": result["total_tool_calls"],
-                            "total_input_tokens": total_input_tokens,
-                            "total_output_tokens": total_output_tokens,
-                            "tool_calling_errors": result["tool_calling_errors"],
-                        }
-                    )
-                except Exception as e:
-                    pass
-                finally:
+                for future in as_completed(futures):
+                    result = future.result()
+                    if result is not None:
+                        data_points.append(result)
                     progress.update(task, advance=1)
 
         if dataset_name:
