@@ -4,6 +4,14 @@ from typing import Any, Tuple
 
 import weave
 from datasets import Dataset
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from smolagents import (
     ActionStep,
     AgentLogger,
@@ -11,7 +19,6 @@ from smolagents import (
     MultiStepAgent,
     PythonInterpreterTool,
 )
-from tqdm.auto import tqdm
 
 from athena_dr.agent.model import OpenAIModelWithThinkingTraces
 from athena_dr.agent.prompts import (
@@ -82,6 +89,7 @@ class DeepResearchAgent(weave.Model):
             description=TOOL_CALLING_AGENT_DESCRIPTION,
             provide_run_summary=True,
             final_answer_checks=[increment_web_agent_token_counts],
+            max_tool_threads=self.config.max_tool_threads,
         )
 
     @weave.op
@@ -118,6 +126,7 @@ class DeepResearchAgent(weave.Model):
             )
         tool_calls = []
         token_usage_per_step = []
+        tool_calling_errors = 0
         for step in self._tool_calling_agent.memory.steps:
             if isinstance(step, ActionStep):
                 if step.tool_calls:
@@ -125,6 +134,10 @@ class DeepResearchAgent(weave.Model):
                     for tool_call in step.tool_calls:
                         if tool_call.name != "final_answer":
                             tool_calls.append(tool_call.name)
+
+                # Count tool calling errors
+                if step.error is not None:
+                    tool_calling_errors += 1
 
                 # Collect token usage for this step
                 if step.token_usage:
@@ -143,6 +156,7 @@ class DeepResearchAgent(weave.Model):
             "trace": trace,
             "total_tool_calls": len(tool_calls),
             "tool_calls": tool_calls,
+            "tool_calling_errors": tool_calling_errors,
             "token_usage_per_step": token_usage_per_step,
         }
 
@@ -157,37 +171,50 @@ class DeepResearchAgent(weave.Model):
         max_examples: int | None = None,
     ) -> list[dict]:
         dataset = dataset.select(range(max_examples)) if max_examples else dataset
-        self._tool_calling_agent.logger = AgentLogger(level=0)
+        silent_logger = AgentLogger(level=0)
+        self._tool_calling_agent.logger = silent_logger
+        self._tool_calling_agent.monitor.logger = silent_logger
         data_points = []
-        for data_point in tqdm(
-            dataset, desc="Generating SFT Traces", total=len(dataset)
-        ):
-            try:
-                result = self.predict(
-                    data_point[prompt_column], answer_type=answer_type
-                )
-                # Calculate total input and output tokens across all steps
-                total_input_tokens = sum(
-                    step["input_tokens"] for step in result["token_usage_per_step"]
-                )
-                total_output_tokens = sum(
-                    step["output_tokens"] for step in result["token_usage_per_step"]
-                )
 
-                data_points.append(
-                    {
-                        "prompt": data_point[prompt_column],
-                        "original_answer": data_point[answer_column],
-                        "answer": result["final_result"],
-                        "conversations": result["trace"],
-                        "tool_calls": result["tool_calls"],
-                        "total_tool_calls": result["total_tool_calls"],
-                        "total_input_tokens": total_input_tokens,
-                        "total_output_tokens": total_output_tokens,
-                    }
-                )
-            except Exception as e:
-                pass
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+        ) as progress:
+            task = progress.add_task("Generating SFT Traces", total=len(dataset))
+
+            for data_point in dataset:
+                try:
+                    result = self.predict(
+                        data_point[prompt_column], answer_type=answer_type
+                    )
+                    # Calculate total input and output tokens across all steps
+                    total_input_tokens = sum(
+                        step["input_tokens"] for step in result["token_usage_per_step"]
+                    )
+                    total_output_tokens = sum(
+                        step["output_tokens"] for step in result["token_usage_per_step"]
+                    )
+
+                    data_points.append(
+                        {
+                            "prompt": data_point[prompt_column],
+                            "original_answer": data_point[answer_column],
+                            "answer": result["final_result"],
+                            "conversations": result["trace"],
+                            "tool_calls": result["tool_calls"],
+                            "total_tool_calls": result["total_tool_calls"],
+                            "total_input_tokens": total_input_tokens,
+                            "total_output_tokens": total_output_tokens,
+                            "tool_calling_errors": result["tool_calling_errors"],
+                        }
+                    )
+                except Exception as e:
+                    pass
+                finally:
+                    progress.update(task, advance=1)
 
         if dataset_name:
             dataset = Dataset.from_list(data_points)

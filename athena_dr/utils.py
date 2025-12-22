@@ -14,6 +14,7 @@ class WorkflowConfig:
     agent_max_steps: int
     agent_name: str
     max_output_tokens: int = 30000
+    max_tool_threads: int = 5
 
 
 def get_config(config_path: os.PathLike) -> WorkflowConfig:
