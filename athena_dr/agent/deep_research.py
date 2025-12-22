@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Any, Tuple
 
 import weave
@@ -10,17 +11,24 @@ from smolagents import (
 
 from athena_dr.agent.model import OpenAIModelWithThinkingTraces
 from athena_dr.agent.prompts import (
-    DEEP_RESEARCH_PROMPT_TEMPLATE,
+    EXACT_ANSWER_PROMPT_TEMPLATE,
+    LONG_ANSWER_PROMPT_TEMPLATE,
+    SHORT_ANSWER_PROMPT_TEMPLATE,
     TOOL_CALLING_AGENT_DESCRIPTION,
 )
 from athena_dr.agent.tools import (
     Crawl4AIFetchTool,
     JinaFetchTool,
     SerperSearchTool,
-    TheSportsDBLookupTool,
     TheSportsDBSearchTool,
 )
 from athena_dr.utils import WorkflowConfig
+
+
+class AnswerType(Enum):
+    SHORT = "short"
+    LONG = "long"
+    EXACT = "exact"
 
 
 @weave.op
@@ -46,7 +54,6 @@ class DeepResearchAgent(weave.Model):
             Crawl4AIFetchTool(),
             JinaFetchTool(),
             TheSportsDBSearchTool(),
-            TheSportsDBLookupTool(),
             PythonInterpreterTool(),
         ]
         self._model = OpenAIModelWithThinkingTraces(
@@ -70,8 +77,13 @@ class DeepResearchAgent(weave.Model):
         )
 
     @weave.op
-    def predict(self, query: str) -> Tuple[str, list]:
-        query = DEEP_RESEARCH_PROMPT_TEMPLATE.format(task=query)
+    def predict(self, query: str, answer_type: AnswerType) -> Tuple[str, list]:
+        if answer_type == AnswerType.EXACT:
+            query = EXACT_ANSWER_PROMPT_TEMPLATE.format(query=query)
+        elif answer_type == AnswerType.SHORT:
+            query = SHORT_ANSWER_PROMPT_TEMPLATE.format(query=query)
+        elif answer_type == AnswerType.LONG:
+            query = LONG_ANSWER_PROMPT_TEMPLATE.format(query=query)
         final_result = self._tool_calling_agent.run(query)
         agent_memory = self._tool_calling_agent.write_memory_to_messages()
         trace = []
