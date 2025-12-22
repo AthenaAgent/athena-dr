@@ -9,7 +9,6 @@ from smolagents import (
     Model,
     MultiStepAgent,
     PythonInterpreterTool,
-    ToolCallingAgent,
 )
 from tqdm.auto import tqdm
 
@@ -20,6 +19,7 @@ from athena_dr.agent.prompts import (
     SHORT_ANSWER_PROMPT_TEMPLATE,
     TOOL_CALLING_AGENT_DESCRIPTION,
 )
+from athena_dr.agent.token_limited_agent import TokenLimitedToolCallingAgent
 from athena_dr.agent.tools import (
     Crawl4AIFetchTool,
     JinaFetchTool,
@@ -70,10 +70,11 @@ class DeepResearchAgent(weave.Model):
             temperature=self.config.temperature,
             extra_body={"reasoning": {"enabled": True}},
         )
-        self._tool_calling_agent = ToolCallingAgent(
+        self._tool_calling_agent = TokenLimitedToolCallingAgent(
             model=self._model,
             tools=self._tools,
             max_steps=self.config.agent_max_steps,
+            max_output_tokens=self.config.max_output_tokens,
             verbosity_level=self.verbosity_level,
             planning_interval=self.planning_interval,
             name=self.config.agent_name,
@@ -112,18 +113,33 @@ class DeepResearchAgent(weave.Model):
                 }
             )
         tool_calls = []
+        token_usage_per_step = []
         for step in self._tool_calling_agent.memory.steps:
-            if isinstance(step, ActionStep) and step.tool_calls:
-                # Exclude final_answer tool calls if you only want actual tool usage
-                for tool_call in step.tool_calls:
-                    if tool_call.name != "final_answer":
-                        tool_calls.append(tool_call.name)
+            if isinstance(step, ActionStep):
+                if step.tool_calls:
+                    # Exclude final_answer tool calls if you only want actual tool usage
+                    for tool_call in step.tool_calls:
+                        if tool_call.name != "final_answer":
+                            tool_calls.append(tool_call.name)
+
+                # Collect token usage for this step
+                if step.token_usage:
+                    token_usage_per_step.append(
+                        {
+                            "step_number": step.step_number,
+                            "input_tokens": step.token_usage.input_tokens,
+                            "output_tokens": step.token_usage.output_tokens,
+                            "total_tokens": step.token_usage.total_tokens,
+                        }
+                    )
+
         return {
             "final_result": self.postprocess_final_result(final_result, answer_type),
             "agent_memory": agent_memory,
             "trace": trace,
             "total_tool_calls": len(tool_calls),
             "tool_calls": tool_calls,
+            "token_usage_per_step": token_usage_per_step,
         }
 
     @weave.op
@@ -143,7 +159,17 @@ class DeepResearchAgent(weave.Model):
             dataset, desc="Generating SFT Traces", total=len(dataset)
         ):
             try:
-                result = self.predict(data_point[prompt_column], answer_type=answer_type)
+                result = self.predict(
+                    data_point[prompt_column], answer_type=answer_type
+                )
+                # Calculate total input and output tokens across all steps
+                total_input_tokens = sum(
+                    step["input_tokens"] for step in result["token_usage_per_step"]
+                )
+                total_output_tokens = sum(
+                    step["output_tokens"] for step in result["token_usage_per_step"]
+                )
+
                 data_points.append(
                     {
                         "prompt": data_point[prompt_column],
@@ -152,6 +178,8 @@ class DeepResearchAgent(weave.Model):
                         "trace": result["trace"],
                         "tool_calls": result["tool_calls"],
                         "total_tool_calls": result["total_tool_calls"],
+                        "total_input_tokens": total_input_tokens,
+                        "total_output_tokens": total_output_tokens,
                     }
                 )
             except Exception as e:

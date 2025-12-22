@@ -13,6 +13,7 @@ class WorkflowConfig:
     temperature: float
     agent_max_steps: int
     agent_name: str
+    max_output_tokens: int = 30000
 
 
 def get_config(config_path: os.PathLike) -> WorkflowConfig:
