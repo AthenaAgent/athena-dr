@@ -29,7 +29,12 @@ class OpenAIModelWithThinkingTraces(OpenAIModel):
         )
         content = response.choices[0].message.content
         reasoning_trace = getattr(response.choices[0].message, "reasoning", None)
-        content = f"<thinking>{reasoning_trace}</thinking>\n\n{content}"
+        content = (
+            f"<thinking>{reasoning_trace}</thinking>\n\n{content}"
+            if reasoning_trace is not None
+            else content
+        )
+        content = content.strip()
         if stop_sequences is not None and not self.supports_stop_parameter:
             content = remove_content_after_stop_sequences(content, stop_sequences)
         return ChatMessage(
