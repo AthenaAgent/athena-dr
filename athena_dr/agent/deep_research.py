@@ -2,13 +2,16 @@ from enum import Enum
 from typing import Any, Tuple
 
 import weave
+from datasets import Dataset
 from smolagents import (
     ActionStep,
+    AgentLogger,
     Model,
     MultiStepAgent,
     PythonInterpreterTool,
     ToolCallingAgent,
 )
+from tqdm.auto import tqdm
 
 from athena_dr.agent.model import OpenAIModelWithThinkingTraces
 from athena_dr.agent.prompts import (
@@ -44,6 +47,8 @@ def increment_web_agent_token_counts(
 
 class DeepResearchAgent(weave.Model):
     config: WorkflowConfig
+    verbosity_level: int = 2
+    planning_interval: int = 1
     _tools: list
     _model: Model
     _tool_calling_agent: MultiStepAgent
@@ -69,8 +74,8 @@ class DeepResearchAgent(weave.Model):
             model=self._model,
             tools=self._tools,
             max_steps=self.config.agent_max_steps,
-            verbosity_level=2,
-            planning_interval=1,
+            verbosity_level=self.verbosity_level,
+            planning_interval=self.planning_interval,
             name=self.config.agent_name,
             description=TOOL_CALLING_AGENT_DESCRIPTION,
             provide_run_summary=True,
@@ -81,12 +86,11 @@ class DeepResearchAgent(weave.Model):
     def postprocess_final_result(
         self, final_result: str, answer_type: AnswerType
     ) -> str:
-        if answer_type == AnswerType.EXACT or answer_type == AnswerType.SHORT:
-            final_result = (
-                final_result
-                if not "<answer>" in final_result
-                else final_result.split("<answer>")[1].split("</answer>")[0].strip()
-            )
+        final_result = (
+            final_result
+            if not "<answer>" in final_result
+            else final_result.split("<answer>")[1].split("</answer>")[0].strip()
+        )
         return final_result
 
     @weave.op
@@ -121,3 +125,40 @@ class DeepResearchAgent(weave.Model):
             "total_tool_calls": len(tool_calls),
             "tool_calls": tool_calls,
         }
+
+    @weave.op
+    def generate_sft_traces(
+        self,
+        dataset: Dataset,
+        answer_type: AnswerType,
+        prompt_column: str,
+        answer_column: str,
+        dataset_name: str | None = None,
+        max_examples: int | None = None,
+    ) -> list[dict]:
+        dataset = dataset.select(range(max_examples)) if max_examples else dataset
+        self._tool_calling_agent.logger = AgentLogger(verbosity_level=0)
+        data_points = []
+        for data_point in tqdm(
+            dataset, desc="Generating SFT Traces", total=len(dataset)
+        ):
+            try:
+                result = self.predict(data_point[prompt_column], answer_type=answer_type)
+                data_points.append(
+                    {
+                        "prompt": data_point[prompt_column],
+                        "original_answer": data_point[answer_column],
+                        "answer": result["final_result"],
+                        "trace": result["trace"],
+                        "tool_calls": result["tool_calls"],
+                        "total_tool_calls": result["total_tool_calls"],
+                    }
+                )
+            except Exception as e:
+                pass
+
+        if dataset_name:
+            dataset = Dataset.from_list(data_points)
+            dataset.push_to_hub(dataset_name)
+
+        return data_points
