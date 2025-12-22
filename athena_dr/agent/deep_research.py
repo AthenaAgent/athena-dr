@@ -78,6 +78,18 @@ class DeepResearchAgent(weave.Model):
         )
 
     @weave.op
+    def postprocess_final_result(
+        self, final_result: str, answer_type: AnswerType
+    ) -> str:
+        if answer_type == AnswerType.EXACT or answer_type == AnswerType.SHORT:
+            final_result = (
+                final_result
+                if not "<answer>" in final_result
+                else final_result.split("<answer>")[1].split("</answer>")[0].strip()
+            )
+        return final_result
+
+    @weave.op
     def predict(self, query: str, answer_type: AnswerType) -> Tuple[str, list]:
         if answer_type == AnswerType.EXACT:
             query = EXACT_ANSWER_PROMPT_TEMPLATE.format(query=query)
@@ -95,16 +107,17 @@ class DeepResearchAgent(weave.Model):
                     "content": step.content[0]["text"],
                 }
             )
-        total_tool_calls = 0
+        tool_calls = []
         for step in self._tool_calling_agent.memory.steps:
             if isinstance(step, ActionStep) and step.tool_calls:
                 # Exclude final_answer tool calls if you only want actual tool usage
                 for tool_call in step.tool_calls:
                     if tool_call.name != "final_answer":
-                        total_tool_calls += 1
+                        tool_calls.append(tool_call.name)
         return {
-            "final_result": final_result,
+            "final_result": self.postprocess_final_result(final_result, answer_type),
             "agent_memory": agent_memory,
             "trace": trace,
-            "total_tool_calls": total_tool_calls,
+            "total_tool_calls": len(tool_calls),
+            "tool_calls": tool_calls,
         }

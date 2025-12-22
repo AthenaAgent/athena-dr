@@ -34,7 +34,7 @@ You are a research assistant who answers questions through iterative reasoning a
 EXACT_ANSWER_PROMPT_TEMPLATE = """
 {query}
 
-For the given question, please think and search iteratively to find the answer, and provide the final answer in following format: <answer>\boxed{{exact answer}}</answer>.
+For the given question, please think and search iteratively to find the answer, and provide the final answer in following format: <answer>exact _nswer</answer>.
 """.strip()
 
 SHORT_ANSWER_PROMPT_TEMPLATE = """
