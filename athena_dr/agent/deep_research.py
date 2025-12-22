@@ -3,6 +3,7 @@ from typing import Any, Tuple
 
 import weave
 from smolagents import (
+    ActionStep,
     Model,
     MultiStepAgent,
     PythonInterpreterTool,
@@ -94,8 +95,16 @@ class DeepResearchAgent(weave.Model):
                     "content": step.content[0]["text"],
                 }
             )
+        total_tool_calls = 0
+        for step in self._tool_calling_agent.memory.steps:
+            if isinstance(step, ActionStep) and step.tool_calls:
+                # Exclude final_answer tool calls if you only want actual tool usage
+                for tool_call in step.tool_calls:
+                    if tool_call.name != "final_answer":
+                        total_tool_calls += 1
         return {
             "final_result": final_result,
             "agent_memory": agent_memory,
             "trace": trace,
+            "total_tool_calls": total_tool_calls,
         }

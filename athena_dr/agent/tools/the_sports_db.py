@@ -5,12 +5,24 @@ from urllib.parse import quote
 import requests
 import weave
 from smolagents import Tool
+from tqdm.auto import tqdm
 
 
 class TheSportsDBSearchTool(Tool):
     name = "the_sports_db_search_tool"
     description = """
-    This is a tool that searches forr any sports league, team, player, event, or venue based on a query"""
+    Use this tool when you need detailed, structured sports data about leagues, teams, players, events, or venues.
+    This tool provides comprehensive sports information including player statistics, team rosters, event lineups, match results, and historical data.
+    
+    **When to use this tool:**
+    - Queries about specific sports teams, players, leagues, events, or venues
+    - Questions requiring detailed sports statistics, player contracts, honors, or career milestones
+    - Requests for match/event details including lineups, results, timelines, or highlights
+    - Sports-related queries where structured data is more useful than general web search results
+    
+    **Examples:** "Who won the 2023 NBA championship?", "Show me Lionel Messi's career statistics", "What is the lineup for Manchester United's next match?"
+    
+    This tool returns structured data with IDs and detailed information, making it ideal for sports-specific queries."""
     inputs = {
         "query": {
             "type": "string",
@@ -29,6 +41,7 @@ class TheSportsDBSearchTool(Tool):
 
     @weave.op
     def thesportsdb_lookup(
+        self,
         lookup_id: str,
         lookup_type: Literal[
             "league",
@@ -89,22 +102,22 @@ class TheSportsDBSearchTool(Tool):
         ):
             for key, value in result.items():
                 if key == "idPlayer":
-                    player_details = thesportsdb_lookup(
+                    player_details = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="player"
                     )
-                    player_contracts = thesportsdb_lookup(
+                    player_contracts = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="player_contracts"
                     )
-                    player_results = thesportsdb_lookup(
+                    player_results = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="player_results"
                     )
-                    player_honours = thesportsdb_lookup(
+                    player_honours = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="player_honours"
                     )
-                    player_milestones = thesportsdb_lookup(
+                    player_milestones = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="player_milestones"
                     )
-                    player_teams = thesportsdb_lookup(
+                    player_teams = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="player_teams"
                     )
                     search_results[result_index][key] = {
@@ -117,10 +130,10 @@ class TheSportsDBSearchTool(Tool):
                         "teams": player_teams,
                     }
                 elif key == "idTeam":
-                    team_details = thesportsdb_lookup(
+                    team_details = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="team"
                     )
-                    team_equipment = thesportsdb_lookup(
+                    team_equipment = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="team_equipment"
                     )
                     search_results[result_index][key] = {
@@ -129,7 +142,7 @@ class TheSportsDBSearchTool(Tool):
                         "equipment": team_equipment,
                     }
                 elif key == "idLeague":
-                    league_details = thesportsdb_lookup(
+                    league_details = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="league"
                     )
                     search_results[result_index][key] = {
@@ -137,25 +150,25 @@ class TheSportsDBSearchTool(Tool):
                         "details": league_details,
                     }
                 elif key == "idEvent":
-                    event_details = thesportsdb_lookup(
+                    event_details = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="event"
                     )
-                    event_lineup = thesportsdb_lookup(
+                    event_lineup = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="event_lineup"
                     )
-                    event_results = thesportsdb_lookup(
+                    event_results = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="event_results"
                     )
-                    event_stats = thesportsdb_lookup(
+                    event_stats = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="event_stats"
                     )
-                    event_timeline = thesportsdb_lookup(
+                    event_timeline = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="event_timeline"
                     )
-                    event_tv = thesportsdb_lookup(
+                    event_tv = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="event_tv"
                     )
-                    event_highlights = thesportsdb_lookup(
+                    event_highlights = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="event_highlights"
                     )
                     search_results[result_index][key] = {
@@ -169,7 +182,7 @@ class TheSportsDBSearchTool(Tool):
                         "highlights": event_highlights,
                     }
                 elif key == "idVenue":
-                    venue_details = thesportsdb_lookup(
+                    venue_details = self.thesportsdb_lookup(
                         lookup_id=value, lookup_type="venue"
                     )
                     search_results[result_index][key] = {
