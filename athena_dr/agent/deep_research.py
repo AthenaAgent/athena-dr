@@ -4,11 +4,11 @@ import weave
 from smolagents import (
     Model,
     MultiStepAgent,
-    OpenAIModel,
-    ToolCallingAgent,
     PythonInterpreterTool,
+    ToolCallingAgent,
 )
 
+from athena_dr.agent.model import OpenAIModelWithThinkingTraces
 from athena_dr.agent.prompts import (
     DEEP_RESEARCH_PROMPT_TEMPLATE,
     TOOL_CALLING_AGENT_DESCRIPTION,
@@ -49,12 +49,13 @@ class DeepResearchAgent(weave.Model):
             TheSportsDBLookupTool(),
             PythonInterpreterTool(),
         ]
-        self._model = OpenAIModel(
+        self._model = OpenAIModelWithThinkingTraces(
             model_id=self.config.model_name,
             api_base=self.config.base_url,
             api_key=self.config.api_key,
             max_tokens=self.config.max_tokens,
             temperature=self.config.temperature,
+            extra_body={"reasoning": {"enabled": True}},
         )
         self._tool_calling_agent = ToolCallingAgent(
             model=self._model,
