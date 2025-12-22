@@ -7,3 +7,4 @@ agent_max_steps: 30
 agent_name: "search_agent"
 max_output_tokens: 30000
 max_tool_threads: 10
+max_agent_workers: 5
