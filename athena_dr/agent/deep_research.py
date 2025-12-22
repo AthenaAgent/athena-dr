@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from typing import Any, Tuple
 
@@ -87,6 +88,9 @@ class DeepResearchAgent(weave.Model):
     def postprocess_final_result(
         self, final_result: str, answer_type: AnswerType
     ) -> str:
+        final_result = re.sub(
+            r"<thinking>.*?</thinking>", "", final_result, flags=re.DOTALL
+        )
         final_result = (
             final_result
             if not "<answer>" in final_result
@@ -153,7 +157,7 @@ class DeepResearchAgent(weave.Model):
         max_examples: int | None = None,
     ) -> list[dict]:
         dataset = dataset.select(range(max_examples)) if max_examples else dataset
-        self._tool_calling_agent.logger = AgentLogger(verbosity_level=0)
+        self._tool_calling_agent.logger = AgentLogger(level=0)
         data_points = []
         for data_point in tqdm(
             dataset, desc="Generating SFT Traces", total=len(dataset)
@@ -175,7 +179,7 @@ class DeepResearchAgent(weave.Model):
                         "prompt": data_point[prompt_column],
                         "original_answer": data_point[answer_column],
                         "answer": result["final_result"],
-                        "trace": result["trace"],
+                        "conversations": result["trace"],
                         "tool_calls": result["tool_calls"],
                         "total_tool_calls": result["total_tool_calls"],
                         "total_input_tokens": total_input_tokens,
