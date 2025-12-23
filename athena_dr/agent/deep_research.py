@@ -29,6 +29,7 @@ from athena_dr.agent.prompts import (
 )
 from athena_dr.agent.token_limited_agent import TokenLimitedToolCallingAgent
 from athena_dr.agent.tools import (
+    CodeExecutionTool,
     Crawl4AIFetchTool,
     JinaFetchTool,
     PubMedSearchTool,
@@ -36,7 +37,6 @@ from athena_dr.agent.tools import (
     SemanticScholarSnippetSearchTool,
     SerperSearchTool,
     TheSportsDBSearchTool,
-    CodeExecutionTool,
 )
 from athena_dr.utils import WorkflowConfig
 
