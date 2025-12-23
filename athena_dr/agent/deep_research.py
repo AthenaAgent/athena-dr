@@ -18,7 +18,6 @@ from smolagents import (
     AgentLogger,
     Model,
     MultiStepAgent,
-    PythonInterpreterTool,
 )
 
 from athena_dr.agent.model import OpenAIModelWithThinkingTraces
@@ -37,6 +36,7 @@ from athena_dr.agent.tools import (
     SemanticScholarSnippetSearchTool,
     SerperSearchTool,
     TheSportsDBSearchTool,
+    CodeExecutionTool,
 )
 from athena_dr.utils import WorkflowConfig
 
@@ -74,7 +74,7 @@ class DeepResearchAgent(weave.Model):
             TheSportsDBSearchTool(),
             SemanticScholarPaperSearchTool(),
             SemanticScholarSnippetSearchTool(),
-            PythonInterpreterTool(),
+            CodeExecutionTool(),
             PubMedSearchTool(),
         ]
         self._model = OpenAIModelWithThinkingTraces(
