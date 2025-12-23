@@ -35,6 +35,10 @@ class OpenAIModelWithThinkingTraces(OpenAIModel):
     ) -> tuple[str, list[dict[str, Any]] | None]:
         """Parse XML-formatted tool calls and convert to OpenAI format.
 
+        Supports multiple formats:
+        1. <tool_call><tool_name>name</tool_name><arg>value</arg></tool_call>
+        2. <tool_call>tool_name\n"arg": "value"...</tool_call> (hybrid format)
+
         Returns:
             Tuple of (cleaned_content, tool_calls_list or None)
         """
@@ -44,54 +48,83 @@ class OpenAIModelWithThinkingTraces(OpenAIModel):
         tool_calls = []
         cleaned_content = content
 
-        # Extract all tool_call blocks
-        tool_call_pattern = r"<tool_call>(.*?)</tool_call>"
-        matches = re.finditer(tool_call_pattern, content, re.DOTALL)
+        # Extract all tool_call blocks (with or without closing tag)
+        # Some models don't close the tag properly
+        tool_call_pattern = r"<tool_call>(.*?)(?:</tool_call>|\}(?=\s*(?:<|$|Error)))"
+        matches = list(re.finditer(tool_call_pattern, content, re.DOTALL))
 
         for idx, match in enumerate(matches):
             tool_call_xml = match.group(1).strip()
+            tool_name = None
+            arguments = {}
 
             try:
-                # Parse the XML content
-                root = ET.fromstring(f"<root>{tool_call_xml}</root>")
+                # Try Format 1: Standard XML with <tool_name> element
+                try:
+                    root = ET.fromstring(f"<root>{tool_call_xml}</root>")
+                    tool_name_elem = root.find("tool_name")
+                    if tool_name_elem is not None and tool_name_elem.text:
+                        tool_name = tool_name_elem.text.strip()
+                        for child in root:
+                            if child.tag != "tool_name" and child.text:
+                                arguments[child.tag] = child.text.strip()
+                except ET.ParseError:
+                    pass
 
-                # Extract tool name
-                tool_name_elem = root.find("tool_name")
-                if tool_name_elem is None or not tool_name_elem.text:
-                    continue
+                # Try Format 2: Hybrid format - tool name as first line, then JSON-like args
+                # <tool_call>semantic_scholar_paper_search
+                #   "query": "value",
+                #   "limit": 10
+                # }
+                if tool_name is None:
+                    lines = tool_call_xml.split("\n")
+                    if lines:
+                        # First line should be the tool name
+                        first_line = lines[0].strip()
+                        # Remove any leading { if present
+                        if first_line.startswith("{"):
+                            first_line = first_line[1:].strip()
+                        # Tool name is alphanumeric with underscores
+                        tool_name_match = re.match(r"^([a-zA-Z_][a-zA-Z0-9_]*)", first_line)
+                        if tool_name_match:
+                            tool_name = tool_name_match.group(1)
 
-                tool_name = tool_name_elem.text.strip()
+                            # Rest is JSON-like content
+                            rest_content = "\n".join(lines[1:])
+                            # Add opening brace if missing
+                            if "{" not in tool_call_xml or tool_call_xml.index("{") > len(first_line):
+                                rest_content = "{" + rest_content
+                            # Ensure closing brace
+                            if not rest_content.rstrip().endswith("}"):
+                                rest_content = rest_content.rstrip() + "}"
 
-                # Extract arguments (all other elements are arguments)
-                arguments = {}
-                for child in root:
-                    if child.tag != "tool_name" and child.text:
-                        arguments[child.tag] = child.text.strip()
+                            try:
+                                arguments = json.loads(rest_content)
+                            except json.JSONDecodeError:
+                                # Try to extract key-value pairs with regex
+                                kv_pattern = r'"(\w+)"\s*:\s*(?:"([^"]*)"|([\d.]+))'
+                                for kv in re.finditer(kv_pattern, rest_content):
+                                    key = kv.group(1)
+                                    if kv.group(2) is not None:
+                                        arguments[key] = kv.group(2)
+                                    elif kv.group(3) is not None:
+                                        val = kv.group(3)
+                                        arguments[key] = int(val) if val.isdigit() else float(val)
 
-                # Create OpenAI-style tool call
-                tool_call = {
-                    "id": f"call_{idx}",
-                    "type": "function",
-                    "function": {"name": tool_name, "arguments": json.dumps(arguments)},
-                }
-                tool_calls.append(tool_call)
+                # Try Format 3: Simple regex extraction for <tool_name> tag
+                if tool_name is None:
+                    tool_name_match = re.search(
+                        r"<tool_name>(.*?)</tool_name>", tool_call_xml
+                    )
+                    if tool_name_match:
+                        tool_name = tool_name_match.group(1).strip()
+                        arg_pattern = r"<([^/>]+)>(.*?)</\1>"
+                        for arg_match in re.finditer(arg_pattern, tool_call_xml):
+                            arg_name = arg_match.group(1)
+                            if arg_name != "tool_name":
+                                arguments[arg_name] = arg_match.group(2).strip()
 
-            except ET.ParseError:
-                # If XML parsing fails, try simple regex extraction
-                tool_name_match = re.search(
-                    r"<tool_name>(.*?)</tool_name>", tool_call_xml
-                )
-                if tool_name_match:
-                    tool_name = tool_name_match.group(1).strip()
-                    arguments = {}
-
-                    # Extract all argument tags
-                    arg_pattern = r"<([^/>]+)>(.*?)</\1>"
-                    for arg_match in re.finditer(arg_pattern, tool_call_xml):
-                        arg_name = arg_match.group(1)
-                        if arg_name != "tool_name":
-                            arguments[arg_name] = arg_match.group(2).strip()
-
+                if tool_name:
                     tool_call = {
                         "id": f"call_{idx}",
                         "type": "function",
@@ -102,10 +135,16 @@ class OpenAIModelWithThinkingTraces(OpenAIModel):
                     }
                     tool_calls.append(tool_call)
 
+            except Exception:
+                continue
+
         # Remove tool_call blocks from content
         if tool_calls:
             cleaned_content = re.sub(
-                tool_call_pattern, "", content, flags=re.DOTALL
+                r"<tool_call>.*?(?:</tool_call>|\}(?=\s*(?:<|$|Error)))",
+                "",
+                content,
+                flags=re.DOTALL,
             ).strip()
 
         return cleaned_content, tool_calls if tool_calls else None
