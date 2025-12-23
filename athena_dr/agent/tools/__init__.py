@@ -1,5 +1,6 @@
 from athena_dr.agent.tools.crawl4ai_fetch_content import Crawl4AIFetchTool
 from athena_dr.agent.tools.jina_fetch_content import JinaFetchTool
+from athena_dr.agent.tools.pubmed import PubMedSearchTool
 from athena_dr.agent.tools.semantic_scholar import (
     SemanticScholarPaperSearchTool,
     SemanticScholarSnippetSearchTool,
@@ -14,4 +15,5 @@ __all__ = [
     "TheSportsDBSearchTool",
     "SemanticScholarPaperSearchTool",
     "SemanticScholarSnippetSearchTool",
+    "PubMedSearchTool",
 ]

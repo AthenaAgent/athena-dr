@@ -32,6 +32,7 @@ from athena_dr.agent.token_limited_agent import TokenLimitedToolCallingAgent
 from athena_dr.agent.tools import (
     Crawl4AIFetchTool,
     JinaFetchTool,
+    PubMedSearchTool,
     SemanticScholarPaperSearchTool,
     SemanticScholarSnippetSearchTool,
     SerperSearchTool,
@@ -74,6 +75,7 @@ class DeepResearchAgent(weave.Model):
             SemanticScholarPaperSearchTool(),
             SemanticScholarSnippetSearchTool(),
             PythonInterpreterTool(),
+            PubMedSearchTool(),
         ]
         self._model = OpenAIModelWithThinkingTraces(
             model_id=self.config.model_name,

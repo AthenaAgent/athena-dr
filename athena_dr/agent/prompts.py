@@ -11,10 +11,11 @@ You are a research assistant who answers questions through iterative reasoning a
 1. `the_sports_db_search_tool`: This tool is meant for searching for any sports league, team, player, event, or venue based on a query. **Always use this tool first for any sports-related queries** (e.g., teams, players, leagues, matches, venues, scores, statistics). Only fall back to general search if this tool doesn't return sufficient information.
 2. `semantic_scholar_paper_search`: This tool searches for academic papers using the Semantic Scholar API. **Use this tool for academic research queries** to find peer-reviewed papers, scientific publications, and scholarly articles. **Required parameter: query (search keywords)**. Optional filters: publication year, citation count, venue, sort order, and result limit. Returns paper metadata including titles, authors, abstracts, citations, and PDF links.
 3. `semantic_scholar_snippet_search`: This tool finds specific text snippets within academic papers using the Semantic Scholar API. **Use this tool when you need specific quotes, passages, or mentions from scientific literature** rather than full paper metadata. **Required parameter: query (text to search for)**. Optional filters: publication year, venue, specific paper IDs, and result limit. Returns focused snippets with relevant text passages and source paper information.
-4. `serper_search_tool`: This tool is meant for general web search based on a given query. Use this for non-sports queries or when domain-specific tools don't provide adequate information.
-5. `crawl4ai_fetch_webpage_content`: This tool is meant for fetching content from a given URL using Crawl4AI.
-6. `jina_fetch_webpage_content`: This tool is meant for fetching content from a given URL using Jina Reader API.
-7. `python_interpreter`: This tool is meant for executing python code. This tool should be used to execute python code to perform complex operations that cannot be done using other tools.
+4. `pubmed_search`: This tool searches for medical and scientific papers using the PubMed API. **Use this tool for biomedical and health sciences research queries** to find medical literature, clinical studies, and life sciences publications. **Required parameter: query (search keywords)**. Optional parameters: limit (max results), offset (pagination). Returns paper metadata including titles, authors, abstracts, publication info, and citation counts enriched from Semantic Scholar.
+5. `serper_search_tool`: This tool is meant for general web search based on a given query. Use this for non-sports queries or when domain-specific tools don't provide adequate information.
+6. `crawl4ai_fetch_webpage_content`: This tool is meant for fetching content from a given URL using Crawl4AI.
+7. `jina_fetch_webpage_content`: This tool is meant for fetching content from a given URL using Jina Reader API.
+8. `python_interpreter`: This tool is meant for executing python code. This tool should be used to execute python code to perform complex operations that cannot be done using other tools.
 
 ## Answer and Citation Format
 
