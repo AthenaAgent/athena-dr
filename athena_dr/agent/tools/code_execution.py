@@ -14,11 +14,11 @@ class CodeExecutionTool(Tool):
     }
     output_type = "object"
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self):
+        super().__init__()
         self.executor_url = "http://localhost:8080/run_code"
 
-    def run(self, code: str) -> str:
+    def forward(self, code: str) -> str:
         return requests.post(
             self.executor_url, json={"code": code, "language": "python"}
         ).json()
