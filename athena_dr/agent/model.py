@@ -85,14 +85,18 @@ class OpenAIModelWithThinkingTraces(OpenAIModel):
                         if first_line.startswith("{"):
                             first_line = first_line[1:].strip()
                         # Tool name is alphanumeric with underscores
-                        tool_name_match = re.match(r"^([a-zA-Z_][a-zA-Z0-9_]*)", first_line)
+                        tool_name_match = re.match(
+                            r"^([a-zA-Z_][a-zA-Z0-9_]*)", first_line
+                        )
                         if tool_name_match:
                             tool_name = tool_name_match.group(1)
 
                             # Rest is JSON-like content
                             rest_content = "\n".join(lines[1:])
                             # Add opening brace if missing
-                            if "{" not in tool_call_xml or tool_call_xml.index("{") > len(first_line):
+                            if "{" not in tool_call_xml or tool_call_xml.index(
+                                "{"
+                            ) > len(first_line):
                                 rest_content = "{" + rest_content
                             # Ensure closing brace
                             if not rest_content.rstrip().endswith("}"):
@@ -109,7 +113,9 @@ class OpenAIModelWithThinkingTraces(OpenAIModel):
                                         arguments[key] = kv.group(2)
                                     elif kv.group(3) is not None:
                                         val = kv.group(3)
-                                        arguments[key] = int(val) if val.isdigit() else float(val)
+                                        arguments[key] = (
+                                            int(val) if val.isdigit() else float(val)
+                                        )
 
                 # Try Format 3: Simple regex extraction for <tool_name> tag
                 if tool_name is None:
