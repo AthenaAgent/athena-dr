@@ -20,7 +20,8 @@ class SemanticScholarPaperSearchTool(Tool):
     - Sort order (e.g., 'citationCount:asc', 'publicationDate:desc')
     - Venue (e.g., 'ACL', 'EMNLP')
     
-    Returns paper metadata including titles, authors, citations, abstracts, and PDF links.
+    Returns paper metadata with snippet IDs (e.g., [s2_paper_1]) for citation.
+    Use these IDs to cite sources with <cite id="s2_paper_1">claim</cite> format.
     """
 
     inputs = {
@@ -54,7 +55,7 @@ class SemanticScholarPaperSearchTool(Tool):
             "nullable": True,
         },
     }
-    output_type = "any"
+    output_type = "string"
 
     @weave.op
     def forward(
@@ -65,7 +66,7 @@ class SemanticScholarPaperSearchTool(Tool):
         sort: Optional[str] = None,
         venue: Optional[str] = None,
         limit: int = 25,
-    ) -> dict:
+    ) -> str:
         import requests
 
         # Build query parameters
@@ -114,7 +115,41 @@ class SemanticScholarPaperSearchTool(Tool):
         else:
             results["data"] = []
 
-        return results
+        # Format output with snippet IDs for citation
+        formatted_papers = []
+        for idx, paper in enumerate(results.get("data", []), start=1):
+            snippet_id = f"s2_paper_{idx}"
+            authors = ", ".join(
+                [a.get("name", "") for a in paper.get("authors", [])[:5]]
+            )
+            if len(paper.get("authors", [])) > 5:
+                authors += " et al."
+
+            paper_info = [
+                f"[{snippet_id}] {paper.get('title', 'N/A')}",
+                f"Authors: {authors}",
+                f"Year: {paper.get('year', 'N/A')}",
+                f"Venue: {paper.get('venue', 'N/A')}",
+                f"Citations: {paper.get('citationCount', 'N/A')}",
+                f"URL: {paper.get('url', 'N/A')}",
+            ]
+
+            if paper.get("openAccessPdf"):
+                paper_info.append(f"PDF: {paper['openAccessPdf'].get('url', 'N/A')}")
+
+            if paper.get("abstract"):
+                # Truncate abstract if too long
+                abstract = paper["abstract"]
+                if len(abstract) > 500:
+                    abstract = abstract[:500] + "..."
+                paper_info.append(f"Abstract: {abstract}")
+
+            formatted_papers.append("\n".join(paper_info) + "\n")
+
+        if not formatted_papers:
+            return "No papers found matching the query."
+
+        return "\n".join(formatted_papers)
 
 
 class SemanticScholarSnippetSearchTool(Tool):
@@ -130,7 +165,8 @@ class SemanticScholarSnippetSearchTool(Tool):
     - Locate mentions of specific concepts or terms in academic literature
     - Get contextual snippets from papers rather than full abstracts
     
-    Each snippet includes the relevant text passage and metadata about the source paper.
+    Returns snippets with IDs (e.g., [s2_snippet_1]) for citation.
+    Use these IDs to cite sources with <cite id="s2_snippet_1">claim</cite> format.
     """
 
     inputs = {
@@ -159,7 +195,7 @@ class SemanticScholarSnippetSearchTool(Tool):
             "nullable": True,
         },
     }
-    output_type = "any"
+    output_type = "string"
 
     @weave.op
     def forward(
@@ -169,7 +205,7 @@ class SemanticScholarSnippetSearchTool(Tool):
         paper_ids: Optional[str] = None,
         venue: Optional[str] = None,
         limit: int = 10,
-    ) -> dict:
+    ) -> str:
         import requests
 
         # Build query parameters
@@ -200,4 +236,29 @@ class SemanticScholarSnippetSearchTool(Tool):
         res.raise_for_status()
         results = res.json()
 
-        return results
+        # Format output with snippet IDs for citation
+        formatted_snippets = []
+        if "data" in results:
+            for idx, snippet in enumerate(results["data"], start=1):
+                snippet_id = f"s2_snippet_{idx}"
+                paper = snippet.get("paper", {})
+                authors = ", ".join(
+                    [a.get("name", "") for a in paper.get("authors", [])[:3]]
+                )
+                if len(paper.get("authors", [])) > 3:
+                    authors += " et al."
+
+                snippet_info = [
+                    f"[{snippet_id}] From: {paper.get('title', 'N/A')}",
+                    f"Authors: {authors}",
+                    f"Year: {paper.get('year', 'N/A')}",
+                    f"URL: {paper.get('url', 'N/A')}",
+                    f"Snippet: {snippet.get('text', 'N/A')}",
+                ]
+
+                formatted_snippets.append("\n".join(snippet_info) + "\n")
+
+        if not formatted_snippets:
+            return "No snippets found matching the query."
+
+        return "\n".join(formatted_snippets)

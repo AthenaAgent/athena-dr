@@ -203,6 +203,9 @@ class Crawl4AIFetchTool(Tool):
     
     Purpose: Fetch and parse webpage content (typically URLs returned from google_search) to extract clean, readable text.
     This tool is useful for opening articles, documentation, and webpages to read their full content.
+    
+    Returns content with a snippet ID (e.g., [crawl4ai_<url_hash>]) for citation.
+    Use this ID to cite sources with <cite id="crawl4ai_...">claim</cite> format.
     """
     inputs = {
         "url": {
@@ -245,7 +248,7 @@ class Crawl4AIFetchTool(Tool):
             "nullable": True,
         },
     }
-    output_type = "object"
+    output_type = "string"
 
     @weave.op
     def forward(
@@ -257,7 +260,9 @@ class Crawl4AIFetchTool(Tool):
         bypass_cache: bool = True,
         timeout_ms: int = 80000,
         include_html: bool = False,
-    ) -> dict:
+    ) -> str:
+        import hashlib
+
         result = _fetch_markdown_sync(
             url=url,
             query=bm25_query,
@@ -268,4 +273,24 @@ class Crawl4AIFetchTool(Tool):
             timeout_ms=timeout_ms,
             include_html=include_html,
         )
-        return result.model_dump()
+
+        # Generate a short hash for the URL to create a unique snippet ID
+        url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+        snippet_id = f"crawl4ai_{url_hash}"
+
+        if not result.success:
+            return f"[{snippet_id}] Error fetching URL: {url}\nError: {result.error}"
+
+        # Format output with snippet ID for citation
+        content = result.fit_markdown or result.markdown
+        if not content:
+            return f"[{snippet_id}] URL: {url}\nNo readable content could be extracted from this page."
+
+        formatted_output = [
+            f"[{snippet_id}] Content from: {url}",
+            f"URL: {url}",
+            "",
+            content,
+        ]
+
+        return "\n".join(formatted_output)

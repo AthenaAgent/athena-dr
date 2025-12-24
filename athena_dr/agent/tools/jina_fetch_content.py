@@ -97,6 +97,9 @@ class JinaFetchTool(Tool):
     
     Purpose: Extract clean webpage content as text/markdown using Jina's cloud-based API.
     This tool is useful for fetching articles, documentation, and webpages without requiring browser automation.
+    
+    Returns content with a snippet ID (e.g., [jina_<url_hash>]) for citation.
+    Use this ID to cite sources with <cite id="jina_...">claim</cite> format.
     """
     inputs = {
         "webpage_url": {
@@ -110,17 +113,44 @@ class JinaFetchTool(Tool):
             "nullable": True,
         },
     }
-    output_type = "object"
+    output_type = "string"
 
     @weave.op
     def forward(
         self,
         webpage_url: str,
         timeout: int = 30,
-    ) -> dict:
+    ) -> str:
+        import hashlib
+
         result = _fetch_webpage_content_jina(
             url=webpage_url,
             api_key=None,
             timeout=timeout,
         )
-        return result.model_dump()
+
+        # Generate a short hash for the URL to create a unique snippet ID
+        url_hash = hashlib.md5(webpage_url.encode()).hexdigest()[:8]
+        snippet_id = f"jina_{url_hash}"
+
+        if not result.success:
+            return f"[{snippet_id}] Error fetching URL: {webpage_url}\nError: {result.error}"
+
+        # Format output with snippet ID for citation
+        formatted_output = [
+            f"[{snippet_id}] {result.title or 'Untitled'}",
+            f"URL: {result.url}",
+        ]
+
+        if result.description:
+            formatted_output.append(f"Description: {result.description}")
+
+        if result.publishedTime:
+            formatted_output.append(f"Published: {result.publishedTime}")
+
+        formatted_output.append("")
+        formatted_output.append(
+            result.content if result.content else "No content extracted."
+        )
+
+        return "\n".join(formatted_output)

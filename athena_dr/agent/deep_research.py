@@ -114,6 +114,47 @@ class DeepResearchAgent(weave.Model):
         return final_result
 
     @weave.op
+    def _extract_citations_from_observations(self, observations: str) -> dict:
+        """Extract snippet IDs and URLs from tool observations."""
+        # Extract snippet IDs (e.g., [serper_1], [s2_paper_1], [pubmed_1], etc.)
+        snippet_ids = re.findall(r"\[([^\]]+)\]", observations)
+        # Filter to only include valid snippet IDs (not markdown links or other brackets)
+        valid_prefixes = (
+            "serper_",
+            "s2_paper_",
+            "s2_snippet_",
+            "pubmed_",
+            "crawl4ai_",
+            "jina_",
+            "sportsdb_",
+        )
+        snippet_ids = [
+            sid
+            for sid in snippet_ids
+            if any(sid.startswith(prefix) for prefix in valid_prefixes)
+        ]
+
+        # Extract URLs
+        urls = re.findall(r"URL: (https?://[^\s\n]+)", observations)
+
+        return {
+            "snippet_ids": snippet_ids,
+            "urls": urls,
+        }
+
+    @weave.op
+    def _extract_citations_from_answer(self, answer: str) -> list:
+        """Extract cited IDs from the final answer using <cite id="..."> format."""
+        # Match <cite id="id1,id2">...</cite> patterns
+        cited_ids = []
+        cite_patterns = re.findall(r'<cite id="([^"]+)">', answer)
+        for pattern in cite_patterns:
+            # Handle comma-separated IDs
+            ids = [id.strip() for id in pattern.split(",")]
+            cited_ids.extend(ids)
+        return cited_ids
+
+    @weave.op
     def predict(self, query: str, answer_type: AnswerType) -> Tuple[str, list]:
         if answer_type == AnswerType.EXACT:
             query = EXACT_ANSWER_PROMPT_TEMPLATE.format(query=query)
@@ -134,6 +175,12 @@ class DeepResearchAgent(weave.Model):
         tool_calls = []
         token_usage_per_step = []
         tool_calling_errors = 0
+
+        # Track citations and sources
+        all_snippet_ids = []
+        all_urls = set()
+        snippet_id_to_source = {}  # Map snippet IDs to their source tools
+
         for step in self._tool_calling_agent.memory.steps:
             if isinstance(step, ActionStep):
                 if step.tool_calls:
@@ -141,6 +188,25 @@ class DeepResearchAgent(weave.Model):
                     for tool_call in step.tool_calls:
                         if tool_call.name != "final_answer":
                             tool_calls.append(tool_call.name)
+
+                            # Extract citations from tool observations
+                            if step.observations:
+                                obs_text = str(step.observations)
+                                extracted = self._extract_citations_from_observations(
+                                    obs_text
+                                )
+
+                                # Map snippet IDs to their source tool
+                                for snippet_id in extracted["snippet_ids"]:
+                                    if snippet_id not in snippet_id_to_source:
+                                        snippet_id_to_source[snippet_id] = {
+                                            "tool": tool_call.name,
+                                            "step": step.step_number,
+                                        }
+                                        all_snippet_ids.append(snippet_id)
+
+                                # Collect URLs
+                                all_urls.update(extracted["urls"])
 
                 # Count tool calling errors
                 if step.error is not None:
@@ -157,6 +223,28 @@ class DeepResearchAgent(weave.Model):
                         }
                     )
 
+        # Extract citations used in the final answer
+        cited_ids_in_answer = self._extract_citations_from_answer(final_result)
+
+        # Build citation metadata for IDs actually used in the answer
+        citations_used = []
+        for cited_id in cited_ids_in_answer:
+            if cited_id in snippet_id_to_source:
+                citations_used.append(
+                    {
+                        "id": cited_id,
+                        **snippet_id_to_source[cited_id],
+                    }
+                )
+            else:
+                citations_used.append(
+                    {
+                        "id": cited_id,
+                        "tool": "unknown",
+                        "step": None,
+                    }
+                )
+
         return {
             "final_result": self.postprocess_final_result(final_result, answer_type),
             "agent_memory": agent_memory,
@@ -165,6 +253,12 @@ class DeepResearchAgent(weave.Model):
             "tool_calls": tool_calls,
             "tool_calling_errors": tool_calling_errors,
             "token_usage_per_step": token_usage_per_step,
+            # New citation-related fields
+            "available_snippet_ids": all_snippet_ids,
+            "urls_used": list(all_urls),
+            "cited_ids_in_answer": cited_ids_in_answer,
+            "citations_used": citations_used,
+            "snippet_id_to_source": snippet_id_to_source,
         }
 
     @weave.op
@@ -212,6 +306,10 @@ class DeepResearchAgent(weave.Model):
                     "total_input_tokens": total_input_tokens,
                     "total_output_tokens": total_output_tokens,
                     "tool_calling_errors": result["tool_calling_errors"],
+                    # Include citation data
+                    "urls_used": result["urls_used"],
+                    "cited_ids_in_answer": result["cited_ids_in_answer"],
+                    "citations_used": result["citations_used"],
                 }
             except Exception as e:
                 return None

@@ -22,7 +22,8 @@ class TheSportsDBSearchTool(Tool):
     
     **Examples:** "Who won the 2023 NBA championship?", "Show me Lionel Messi's career statistics", "What is the lineup for Manchester United's next match?"
     
-    This tool returns structured data with IDs and detailed information, making it ideal for sports-specific queries."""
+    Returns data with snippet IDs (e.g., [sportsdb_player_1]) for citation.
+    Use these IDs to cite sources with <cite id="sportsdb_player_1">claim</cite> format."""
     inputs = {
         "query": {
             "type": "string",
@@ -33,7 +34,7 @@ class TheSportsDBSearchTool(Tool):
             "description": "Type of search to perform (league, team, player, event, venue)",
         },
     }
-    output_type = "object"
+    output_type = "string"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -82,7 +83,7 @@ class TheSportsDBSearchTool(Tool):
         self,
         query: str,
         search_type: Literal["league", "team", "player", "event", "venue"],
-    ) -> dict:
+    ) -> str:
         slug = "_".join(query.strip().split()).lower()
         slug = quote(slug, safe="-_")
         url = f"{self.base_url.rstrip('/')}/search/{search_type}/{slug}"
@@ -189,6 +190,112 @@ class TheSportsDBSearchTool(Tool):
                         "id": value,
                         "details": venue_details,
                     }
-        return {
-            "search_results": search_results,
-        }
+
+        # Format output with snippet IDs for citation
+        formatted_results = []
+        for idx, result in enumerate(search_results, start=1):
+            snippet_id = f"sportsdb_{search_type}_{idx}"
+            result_info = [f"[{snippet_id}] {search_type.capitalize()} Result"]
+            result_info.append(f"Source: TheSportsDB")
+
+            # Extract key information based on search type
+            if search_type == "player":
+                if result.get("strPlayer"):
+                    result_info.append(f"Name: {result.get('strPlayer')}")
+                if result.get("strNationality"):
+                    result_info.append(f"Nationality: {result.get('strNationality')}")
+                if result.get("strPosition"):
+                    result_info.append(f"Position: {result.get('strPosition')}")
+                if result.get("strTeam"):
+                    result_info.append(f"Team: {result.get('strTeam')}")
+                if result.get("dateBorn"):
+                    result_info.append(f"Born: {result.get('dateBorn')}")
+                if result.get("strDescriptionEN"):
+                    desc = result["strDescriptionEN"]
+                    if len(desc) > 500:
+                        desc = desc[:500] + "..."
+                    result_info.append(f"Description: {desc}")
+                # Include detailed data if available
+                if isinstance(result.get("idPlayer"), dict):
+                    player_data = result["idPlayer"]
+                    if player_data.get("honours"):
+                        honours = player_data["honours"][:5]  # Limit to 5
+                        honours_str = ", ".join(
+                            [
+                                h.get("strHonour", "")
+                                for h in honours
+                                if h.get("strHonour")
+                            ]
+                        )
+                        if honours_str:
+                            result_info.append(f"Honours: {honours_str}")
+
+            elif search_type == "team":
+                if result.get("strTeam"):
+                    result_info.append(f"Name: {result.get('strTeam')}")
+                if result.get("strLeague"):
+                    result_info.append(f"League: {result.get('strLeague')}")
+                if result.get("strStadium"):
+                    result_info.append(f"Stadium: {result.get('strStadium')}")
+                if result.get("strCountry"):
+                    result_info.append(f"Country: {result.get('strCountry')}")
+                if result.get("intFormedYear"):
+                    result_info.append(f"Founded: {result.get('intFormedYear')}")
+                if result.get("strDescriptionEN"):
+                    desc = result["strDescriptionEN"]
+                    if len(desc) > 500:
+                        desc = desc[:500] + "..."
+                    result_info.append(f"Description: {desc}")
+
+            elif search_type == "league":
+                if result.get("strLeague"):
+                    result_info.append(f"Name: {result.get('strLeague')}")
+                if result.get("strSport"):
+                    result_info.append(f"Sport: {result.get('strSport')}")
+                if result.get("strCountry"):
+                    result_info.append(f"Country: {result.get('strCountry')}")
+                if result.get("strDescriptionEN"):
+                    desc = result["strDescriptionEN"]
+                    if len(desc) > 500:
+                        desc = desc[:500] + "..."
+                    result_info.append(f"Description: {desc}")
+
+            elif search_type == "event":
+                if result.get("strEvent"):
+                    result_info.append(f"Event: {result.get('strEvent')}")
+                if result.get("dateEvent"):
+                    result_info.append(f"Date: {result.get('dateEvent')}")
+                if result.get("strVenue"):
+                    result_info.append(f"Venue: {result.get('strVenue')}")
+                if (
+                    result.get("intHomeScore") is not None
+                    and result.get("intAwayScore") is not None
+                ):
+                    result_info.append(
+                        f"Score: {result.get('intHomeScore')} - {result.get('intAwayScore')}"
+                    )
+                if result.get("strDescriptionEN"):
+                    desc = result["strDescriptionEN"]
+                    if len(desc) > 500:
+                        desc = desc[:500] + "..."
+                    result_info.append(f"Description: {desc}")
+
+            elif search_type == "venue":
+                if result.get("strVenue"):
+                    result_info.append(f"Name: {result.get('strVenue')}")
+                if result.get("strLocation"):
+                    result_info.append(f"Location: {result.get('strLocation')}")
+                if result.get("intCapacity"):
+                    result_info.append(f"Capacity: {result.get('intCapacity')}")
+                if result.get("strDescriptionEN"):
+                    desc = result["strDescriptionEN"]
+                    if len(desc) > 500:
+                        desc = desc[:500] + "..."
+                    result_info.append(f"Description: {desc}")
+
+            formatted_results.append("\n".join(result_info) + "\n")
+
+        if not formatted_results:
+            return f"No {search_type} results found for query: {query}"
+
+        return "\n".join(formatted_results)

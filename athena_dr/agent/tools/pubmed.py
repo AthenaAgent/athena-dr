@@ -163,7 +163,8 @@ class PubMedSearchTool(Tool):
     - Health sciences literature
     - Life sciences publications
     
-    Returns paper details including titles, authors, abstracts, publication info, and citation counts.
+    Returns papers with snippet IDs (e.g., [pubmed_1]) for citation.
+    Use these IDs to cite sources with <cite id="pubmed_1">claim</cite> format.
     """
 
     inputs = {
@@ -182,7 +183,7 @@ class PubMedSearchTool(Tool):
             "nullable": True,
         },
     }
-    output_type = "any"
+    output_type = "string"
 
     @weave.op
     def forward(
@@ -190,24 +191,47 @@ class PubMedSearchTool(Tool):
         query: str,
         limit: int = 10,
         offset: int = 0,
-    ) -> dict:
+    ) -> str:
         searchStat = search_pubmed_with_keywords(query, offset=offset, limit=limit)
         ids = searchStat["ids"]
 
         if not ids:
-            return {
-                "total": int(searchStat["count"]),
-                "offset": int(searchStat["offset"]),
-                "next": int(searchStat["next"]),
-                "data": [],
-            }
+            return f"No papers found. Total results: {searchStat['count']}"
 
         paper_data = fetch_pubmed_details(ids)
         paper_data = fetch_semantic_scholar_details(paper_data)
 
-        return {
-            "total": int(searchStat["count"]),
-            "offset": int(searchStat["offset"]),
-            "next": int(searchStat["next"]),
-            "data": paper_data,
-        }
+        # Format output with snippet IDs for citation
+        formatted_papers = []
+        for idx, paper in enumerate(paper_data, start=1):
+            snippet_id = f"pubmed_{idx}"
+            authors = ", ".join(
+                [a.get("name", "") for a in paper.get("authors", [])[:5]]
+            )
+            if len(paper.get("authors", [])) > 5:
+                authors += " et al."
+
+            paper_info = [
+                f"[{snippet_id}] {paper.get('title', 'N/A')}",
+                f"Authors: {authors}",
+                f"Year: {paper.get('year', 'N/A')}",
+                f"Venue: {paper.get('venue', 'N/A')}",
+                f"Citations: {paper.get('citationCount', 'N/A')}",
+                f"URL: {paper.get('url', 'N/A')}",
+                f"PMID: {paper.get('paperId', 'N/A')}",
+            ]
+
+            if paper.get("abstract"):
+                # Truncate abstract if too long
+                abstract = paper["abstract"]
+                if len(abstract) > 500:
+                    abstract = abstract[:500] + "..."
+                paper_info.append(f"Abstract: {abstract}")
+
+            formatted_papers.append("\n".join(paper_info) + "\n")
+
+        if not formatted_papers:
+            return "No papers found matching the query."
+
+        header = f"Found {searchStat['count']} total results. Showing {len(formatted_papers)} papers:\n\n"
+        return header + "\n".join(formatted_papers)
